@@ -1435,20 +1435,23 @@ class MainActivity : AppCompatActivity() {
     private val tiles = HashMap<Int, Tile>()
 
     /** Icon bubble (soft colour per shortcut) + title + a live detail line, inside a HomeTile container. */
-    private fun buildTile(id: Int, emoji: String, color: Int, title: String, sub: String = "", big: Boolean = false) {
+    private fun buildTile(id: Int, icon: Int, color: Int, title: String, sub: String = "", big: Boolean = false) {
         val box = findViewById<android.widget.LinearLayout?>(id) ?: return
         box.removeAllViews()
         val dp = resources.displayMetrics.density
-        val bubble = TextView(this).apply {
-            text = emoji
-            textSize = if (big) 20f else 22f
-            gravity = android.view.Gravity.CENTER
+        val bubble = android.widget.ImageView(this).apply {
+            setImageResource(icon)
+            setColorFilter(color)
+            val pad = (10 * dp).toInt()
+            setPadding(pad, pad, pad, pad)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.OVAL
-                setColor((color and 0x00FFFFFF) or 0x33000000)
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = 12 * dp
+                setColor((color and 0x00FFFFFF) or 0x26000000)
             }
         }
-        val size = ((if (big) 42 else 46) * dp).toInt()
+        val size = ((if (big) 42 else 44) * dp).toInt()
         box.addView(bubble, android.widget.LinearLayout.LayoutParams(size, size))
         val t = TextView(this).apply {
             text = title
@@ -1480,16 +1483,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupHomeTiles() {
-        buildTile(R.id.btn_trips_list, "🏍️", 0xFF5B8DEF.toInt(), getString(R.string.home_tile_trips))
-        buildTile(R.id.btn_fuel, "⛽", 0xFFE5774E.toInt(), getString(R.string.home_tile_fuel), getString(R.string.home_tile_fuel_sub))
-        buildTile(R.id.btn_maint, "🔧", 0xFF4FB6A6.toInt(), getString(R.string.home_tile_maint))
-        buildTile(R.id.btn_traffic_lights, "🚦", 0xFFE05A5A.toInt(), getString(R.string.home_tile_tl))
-        buildTile(R.id.btn_live, "📍", 0xFF5FD07A.toInt(), getString(R.string.home_tile_live))
-        buildTile(R.id.btn_help, "❓", 0xFFA98BE0.toInt(), getString(R.string.home_tile_help), getString(R.string.home_tile_help_sub))
-        buildTile(R.id.btn_park_photo, "📸", 0xFFD1A955.toInt(), getString(R.string.home_big_park), getString(R.string.home_big_park_sub), big = true)
-        buildTile(R.id.btn_controls, "🎮", 0xFF5B8DEF.toInt(), getString(R.string.controls_controls), getString(R.string.home_big_controls_sub), big = true)
-        buildTile(R.id.btn_hud_view, "🖥️", 0xFF4FB6A6.toInt(), getString(R.string.hud_dash_view), getString(R.string.home_big_hud_sub), big = true)
-        buildTile(R.id.btn_trip, "⏱️", 0xFF5FD07A.toInt(), getString(R.string.home_big_trip), getString(R.string.home_big_trip_sub), big = true)
+        buildTile(R.id.btn_trips_list, R.drawable.ic_ride, 0xFF5B8DEF.toInt(), getString(R.string.home_tile_trips))
+        buildTile(R.id.btn_fuel, R.drawable.ic_tile_fuel, 0xFFE5774E.toInt(), getString(R.string.home_tile_fuel), getString(R.string.home_tile_fuel_sub))
+        buildTile(R.id.btn_maint, R.drawable.ic_tile_wrench, 0xFF4FB6A6.toInt(), getString(R.string.home_tile_maint))
+        buildTile(R.id.btn_traffic_lights, R.drawable.ic_tile_lights, 0xFFE05A5A.toInt(), getString(R.string.home_tile_tl))
+        buildTile(R.id.btn_live, R.drawable.ic_tile_live, 0xFF5FD07A.toInt(), getString(R.string.home_tile_live))
+        buildTile(R.id.btn_help, R.drawable.ic_tile_help, 0xFFA98BE0.toInt(), getString(R.string.home_tile_help), getString(R.string.home_tile_help_sub))
+        buildTile(R.id.btn_park_photo, R.drawable.ic_tile_camera, 0xFFFF5A1F.toInt(), getString(R.string.home_big_park), getString(R.string.home_big_park_sub), big = true)
+        buildTile(R.id.btn_controls, R.drawable.ic_tile_dpad, 0xFF5B8DEF.toInt(), getString(R.string.controls_controls), getString(R.string.home_big_controls_sub), big = true)
+        buildTile(R.id.btn_hud_view, R.drawable.ic_tile_screen, 0xFF4FB6A6.toInt(), getString(R.string.hud_dash_view), getString(R.string.home_big_hud_sub), big = true)
+        buildTile(R.id.btn_trip, R.drawable.ic_tile_timer, 0xFF5FD07A.toInt(), getString(R.string.home_big_trip), getString(R.string.home_big_trip_sub), big = true)
         findViewById<View>(R.id.btn_traffic_lights)?.setOnClickListener { startActivity(Intent(this, TrafficLightsActivity::class.java)) }
         findViewById<View>(R.id.parked_walk)?.setOnClickListener {
             val spot = Parking.get(this) ?: return@setOnClickListener
@@ -1502,9 +1505,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Android Auto itself can stay on "Connecting…" after a ride (its own notification, not ours).
+     * Only a force stop clears that; no app may do it for the rider, so take them to the button.
+     */
+    private fun showAaStuckHelp() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.aa_stuck_title)
+            .setMessage(R.string.aa_stuck_body)
+            .setPositiveButton(R.string.aa_stuck_open) { _, _ ->
+                stopEverything()
+                try {
+                    startActivity(
+                        Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:com.google.android.projection.gearhead"))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                } catch (_: Exception) {
+                    Toast.makeText(this, R.string.open_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     /** Extra entries for ❓ Help: the bits that used to sit at the bottom of the home screen. */
     private fun helpExtras(): List<Pair<String, () -> Unit>> = buildList {
         add(getString(if (logPanel.visibility == View.VISIBLE) R.string.main_hide_logs else R.string.help_view_logs) to { toggleLogBtn.performClick(); Unit })
+        add(getString(R.string.help_aa_stuck) to { showAaStuckHelp(); Unit })
         add(getString(R.string.help_about) to { AboutActivity.start(this@MainActivity); Unit })
         if (BuildConfig.SELF_UPDATE) add(getString(R.string.help_check_update) to { checkUpdateManual(); Unit })
         if (BuildConfig.SELF_UPDATE) add(getString(R.string.help_update_watch) to {
@@ -1558,8 +1586,8 @@ class MainActivity : AppCompatActivity() {
             else v.setPadding((6 * dp).toInt(), (14 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt())
         }
         style(liveTile, big); style(controls, !big)
-        buildTile(R.id.btn_live, "📍", 0xFF5FD07A.toInt(), getString(R.string.home_tile_live), big = big)
-        buildTile(R.id.btn_controls, "🎮", 0xFF5B8DEF.toInt(), getString(R.string.controls_controls),
+        buildTile(R.id.btn_live, R.drawable.ic_tile_live, 0xFF5FD07A.toInt(), getString(R.string.home_tile_live), big = big)
+        buildTile(R.id.btn_controls, R.drawable.ic_tile_dpad, 0xFF5B8DEF.toInt(), getString(R.string.controls_controls),
             getString(R.string.home_big_controls_sub), big = !big)
         controls.setOnClickListener { startActivity(Intent(this, ControlsActivity::class.java)) }
         renderLive()
@@ -1773,6 +1801,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Update the big status header + Connect button label from a [ConnectionState] transition. */
+    /**
+     * Android Auto → bike Wi-Fi → dash, from what is really up. Hidden when nothing is being
+     * connected (idle / stopped) and in mirror mode, which has no Android Auto leg.
+     */
+    private fun renderConnectSteps(phase: Phase) {
+        val steps = findViewById<ConnectStepsView?>(R.id.connect_steps) ?: return
+        val show = phase != Phase.IDLE && phase != Phase.STOPPED && phase != Phase.MIRRORING &&
+            !GpxSession.active
+        steps.visibility = if (show) View.VISIBLE else View.GONE
+        if (!show) return
+        val dash = phase == Phase.STREAMING
+        steps.set(
+            aa = AaVideoBridge.aaSessionLive || AaVideoBridge.aaDecoding,
+            wifi = dash || BikeWifi.currentNetwork != null || BikeWifiP2p.isConnected,
+            dash = dash,
+            busy = phase.busy,
+            failed = phase == Phase.ERROR,
+        )
+    }
+
     private fun renderStatus(phase: Phase, detail: String) {
         statusView.text = getString(phase.labelRes) +
             (if (ClockLab.resyncInProgress() && phase != Phase.STOPPED && phase != Phase.IDLE)
@@ -1795,6 +1843,7 @@ class MainActivity : AppCompatActivity() {
         statusView.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
         statusIcon.setColorFilter(color)
         statusProgress.visibility = if (phase.busy) View.VISIBLE else View.GONE
+        renderConnectSteps(phase)
 
         // The bike's link ports are held by the official CFMoto app — offer to close it (see
         // EasyConnProber's bind-conflict path). Show once per error so we don't nag on every redraw.

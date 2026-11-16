@@ -78,7 +78,7 @@ class ConnectWidget : AppWidgetProvider() {
         }
 
         private const val SIZE = 320
-        private const val GOLD = 0xFFD1A955.toInt()
+        private const val GOLD = 0xFFFF5A1F.toInt()
         private const val GREEN = 0xFF6FBF73.toInt()
 
         private fun draw(ctx: Context, st: St): Bitmap {
@@ -99,7 +99,7 @@ class ConnectWidget : AppWidgetProvider() {
                 c.drawBitmap(src, Rect((src.width - side) / 2, (src.height - side) / 2, (src.width + side) / 2, (src.height + side) / 2), rect, p)
                 src.recycle()
             } else {
-                p.color = 0xFF243028.toInt()
+                p.color = 0xFF15171B.toInt()
                 c.drawRect(rect, p)
             }
             // Dim so the ring always reads; a green tint once connected.
@@ -123,7 +123,7 @@ class ConnectWidget : AppWidgetProvider() {
                 St.READY -> {
                     p.color = 0x59FFFFFF
                     c.drawCircle(cx, cy, ringR, p)
-                    power(c, p, cx, cy, s, 0xFFF1F4EC.toInt())
+                    power(c, p, cx, cy, s, 0xFFF4F5F7.toInt())
                 }
                 St.CONNECTING -> {
                     p.color = 0x40FFFFFF

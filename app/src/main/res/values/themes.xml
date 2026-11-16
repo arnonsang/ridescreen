@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Visual test "verde mate" (matte green + gold, Archivo). Was: a dark "cockpit" theme with a CFMoto-orange accent. Dark is intentional: this runs on a
+    <!-- "Moto" look: carbon black surfaces, racing-orange accent, tighter corners (Archivo). Before: matte green + gold; before that: a dark "cockpit" theme with a CFMoto-orange accent. Dark is intentional: this runs on a
          bike in daylight/handlebar context and mirrors a commercial head-unit look. -->
     <style name="Base.Theme.OpenCfMoto" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/brand_orange</item>
@@ -113,7 +113,7 @@
         <item name="android:letterSpacing">0.01</item>
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">end</item>
-        <item name="cornerRadius">32dp</item>
+        <item name="cornerRadius">16dp</item>
         <item name="android:minHeight">64dp</item>
         <item name="android:letterSpacing">0.08</item>
         <item name="android:textAllCaps">true</item>
@@ -179,7 +179,7 @@
     <style name="Widget.OpenCfMoto.Button.Pill" parent="Widget.Material3.Button.TonalButton">
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">56dp</item>
-        <item name="cornerRadius">28dp</item>
+        <item name="cornerRadius">14dp</item>
         <item name="android:textSize">15sp</item>
         <item name="android:fontFamily">@font/archivo_semibold</item>
         <item name="fontFamily">@font/archivo_semibold</item>
@@ -215,7 +215,7 @@
     </style>
 
     <style name="Card.OpenCfMoto" parent="Widget.Material3.CardView.Elevated">
-        <item name="cardCornerRadius">22dp</item>
+        <item name="cardCornerRadius">16dp</item>
         <item name="cardBackgroundColor">@color/surface</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/outline</item>
@@ -224,7 +224,7 @@
     </style>
 
     <style name="Card.OpenCfMoto.Log" parent="Card.OpenCfMoto">
-        <item name="cardCornerRadius">18dp</item>
+        <item name="cardCornerRadius">14dp</item>
         <item name="contentPadding">10dp</item>
     </style>
 

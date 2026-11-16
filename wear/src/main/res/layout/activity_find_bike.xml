@@ -18,7 +18,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/find_title"
-            android:textColor="#D1A955"
+            android:textColor="#FF5A1F"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -37,7 +37,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="sans-serif-condensed"
             android:text="--"
-            android:textColor="#F1F4EC"
+            android:textColor="#F4F5F7"
             android:textSize="30sp"
             android:textStyle="bold" />
 
@@ -59,7 +59,7 @@
             android:paddingHorizontal="14dp"
             android:paddingVertical="6dp"
             android:text="@string/find_maps"
-            android:textColor="#F1F4EC"
+            android:textColor="#F4F5F7"
             android:textSize="12sp" />
     </LinearLayout>
 </FrameLayout>

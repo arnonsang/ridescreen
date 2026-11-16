@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Connection steps on the home status card. -->
+    <string name="steps_android_auto" translatable="false">Android Auto</string>
+    <string name="steps_bike_wifi">Bike Wi-Fi</string>
+    <string name="steps_dash">Dash</string>
+
+    <!-- Help: Android Auto left on "Connecting…". -->
+    <string name="help_aa_stuck">Android Auto stuck on \"Connecting…\"?</string>
+    <string name="aa_stuck_title">Android Auto still says \"Connecting…\"</string>
+    <string name="aa_stuck_body">RideScreen now tells Android Auto when a session ends, so this should no longer happen after Stop or when the bike switches off.\n\nIf Android Auto is already stuck, only a force stop clears it: tap the button below, then \"Force stop\". Start its head unit server again before the next ride.</string>
+    <string name="aa_stuck_open">Stop RideScreen and open Android Auto</string>
+</resources>

@@ -211,8 +211,8 @@ class RideTileService : TileService() {
 
     companion object {
         private const val RES_VERSION = "1"
-        private const val GOLD = 0xFFD1A955.toInt()
-        private const val WHITE = 0xFFF1F4EC.toInt()
+        private const val GOLD = 0xFFFF5A1F.toInt()
+        private const val WHITE = 0xFFF4F5F7.toInt()
         private const val GREY = 0xFF9E9E9E.toInt()
     }
 }

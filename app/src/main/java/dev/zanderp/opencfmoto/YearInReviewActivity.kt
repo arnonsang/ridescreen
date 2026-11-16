@@ -120,12 +120,12 @@ class YearInReviewActivity : AppCompatActivity() {
         val s = stats ?: return
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         if (cards.isEmpty()) {
-            col.addView(text(getString(R.string.yir_empty, s.label), 18f, Color.parseColor("#AEBAAA")))
+            col.addView(text(getString(R.string.yir_empty, s.label), 18f, Color.parseColor("#A3A8B3")))
             stage.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             return
         }
         val c = cards[index]
-        col.addView(text(getString(R.string.yir_story_title, s.label), 15f, Color.parseColor("#AEBAAA")))
+        col.addView(text(getString(R.string.yir_story_title, s.label), 15f, Color.parseColor("#A3A8B3")))
         if (c.emoji == YearInReview.ZONE) {
             col.addView(object : View(this) {
                 override fun onDraw(canvas: Canvas) {
@@ -136,9 +136,9 @@ class YearInReviewActivity : AppCompatActivity() {
             col.addView(text(c.emoji, 64f, Color.WHITE).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(24) })
             if (c.big.isNotBlank()) col.addView(text(c.big, 54f, ContextCompat.getColor(this, R.color.brand_orange), R.font.archivo_black))
         }
-        col.addView(text(c.label.uppercase(Locale.getDefault()), 15f, Color.parseColor("#F1F4EC")).apply { letterSpacing = 0.1f })
-        if (c.sub.isNotBlank()) col.addView(text(c.sub, 15f, Color.parseColor("#AEBAAA")))
-        if (index == cards.size - 1) col.addView(text(getString(R.string.yir_tap_share), 13f, Color.parseColor("#AEBAAA")).apply {
+        col.addView(text(c.label.uppercase(Locale.getDefault()), 15f, Color.parseColor("#F4F5F7")).apply { letterSpacing = 0.1f })
+        if (c.sub.isNotBlank()) col.addView(text(c.sub, 15f, Color.parseColor("#A3A8B3")))
+        if (index == cards.size - 1) col.addView(text(getString(R.string.yir_tap_share), 13f, Color.parseColor("#A3A8B3")).apply {
             (layoutParams as LinearLayout.LayoutParams).topMargin = dp(28)
         })
         stage.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))

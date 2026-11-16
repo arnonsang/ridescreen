@@ -161,8 +161,8 @@ class BlackBoxActivity : AppCompatActivity() {
     /** Speed (gold line, km/h) and g-force (bars) from −60 s to +30 s, impact marked in red. */
     private class ChartView(ctx: Context, private val s: BlackBox.Summary) : View(ctx) {
         private val gold = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(ctx, R.color.brand_gold); strokeWidth = 5f; style = Paint.Style.STROKE }
-        private val bar = Paint().apply { color = 0x66AEBAAA }
-        private val grid = Paint().apply { color = 0x333D4F42; strokeWidth = 2f }
+        private val bar = Paint().apply { color = 0x66A3A8B3 }
+        private val grid = Paint().apply { color = 0x332C3038; strokeWidth = 2f }
         private val red = Paint().apply { color = ContextCompat.getColor(ctx, R.color.status_error); strokeWidth = 4f }
         private val txt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(ctx, R.color.text_secondary); textSize = 28f }
 

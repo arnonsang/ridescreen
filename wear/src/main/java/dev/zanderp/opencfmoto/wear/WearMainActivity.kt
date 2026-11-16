@@ -296,7 +296,7 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
         val accent = if (ambient) Color.WHITE else COLOR_ACCENT
         tvSpeed?.setTextColor(Color.WHITE)
         tvSpeedUnit?.setTextColor(if (ambient) Color.WHITE else COLOR_GREY)
-        listOf(tvDist, tvTime, tvMax, tvAvg).forEach { it?.setTextColor(if (ambient) Color.WHITE else Color.parseColor("#F1F4EC")) }
+        listOf(tvDist, tvTime, tvMax, tvAvg).forEach { it?.setTextColor(if (ambient) Color.WHITE else Color.parseColor("#F4F5F7")) }
 
         if (!fresh || s == null) {
             tvSpeed?.text = "--"
@@ -330,7 +330,7 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
         )
         tvSpeedUnit?.text = getString(R.string.summary_unit, ago)
         tvSpeedUnit?.setTextColor(COLOR_GREY)
-        val pill = Color.parseColor("#F1F4EC")
+        val pill = Color.parseColor("#F4F5F7")
         tvDist?.text = formatDuration(last.movingMs)
         tvTime?.text = getString(R.string.pill_avg, last.avgKmh.toInt())
         tvMax?.text = getString(R.string.pill_max, last.maxKmh.toInt())
@@ -532,6 +532,6 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
         private const val AMBIENT_STALE_MS = 90_000L
         private val COLOR_AMBER = Color.parseColor("#FFB300")
         private val COLOR_GREY = Color.parseColor("#9E9E9E")
-        private val COLOR_ACCENT = Color.parseColor("#D1A955")
+        private val COLOR_ACCENT = Color.parseColor("#FF5A1F")
     }
 }

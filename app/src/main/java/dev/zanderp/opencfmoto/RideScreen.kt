@@ -28,6 +28,10 @@ object RideScreen {
         MUSIC("music", "Music"),
         RACE("race", "Race bar"),
         TWIN("twin", "Twin dials"),
+        CLASSIC("classic", "Classic"),
+        COMMUTE("commute", "Commute"),
+        TRIP("trip", "Trip computer"),
+        NIGHT("night", "Night"),
     }
 
     /** Colour sets. [light] themes use dark ink and softer shadows. */
@@ -42,6 +46,24 @@ object RideScreen {
         SUNSET("sunset", "Sunset", 0xFF140A14.toInt(), 0xFF231326.toInt(), 0xFFFFF3EC.toInt(), 0xFFC7A9B8.toInt(), 0xFF3D2440.toInt(), 0xFFFF7A1A.toInt(), 0xFFFF4F8B.toInt(), 0xFF140A14.toInt()),
         DAYLIGHT("daylight", "Daylight", 0xFFF4F5F7.toInt(), 0xFFFFFFFF.toInt(), 0xFF0B0C0E.toInt(), 0xFF4A4F59.toInt(), 0xFFD5D8DE.toInt(), 0xFFC93A04.toInt(), 0xFF0B63CE.toInt(), 0xFFFFFFFF.toInt(), light = true),
     }
+
+    /** What the dash shows: Android Auto, one of these ride screens, or the phone's screen mirrored. */
+    enum class Mode(val key: String) { AA("aa"), RIDE("ride"), MIRROR("mirror") }
+
+    /** Pieces of information the rider can hide from every layout. */
+    enum class Field(val key: String, val label: String) {
+        WEATHER("weather", "Weather"),
+        BATTERY("battery", "Bike battery"),
+        RANGE("range", "Fuel range"),
+        MUSIC("music", "Now playing"),
+        LIMIT("limit", "Speed limit"),
+    }
+
+    /** Accent colours offered on top of each theme's own (0 = keep the theme's). */
+    val ACCENTS = intArrayOf(
+        0, 0xFFD1A955.toInt(), 0xFFFF5A1F.toInt(), 0xFFFF3B30.toInt(), 0xFFFF4FD8.toInt(),
+        0xFF9B6BFF.toInt(), 0xFF3D9BFF.toInt(), 0xFF22E3F0.toInt(), 0xFF5BD47A.toInt(), 0xFFF4F5F7.toInt(),
+    )
 
     private const val PREFS = "ride_screen"
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -65,6 +87,48 @@ object RideScreen {
         return Theme.entries.firstOrNull { it.key == k } ?: Theme.GOLD
     }
     fun setTheme(ctx: Context, t: Theme) { prefs(ctx).edit().putString("theme", t.key).apply(); revision++ }
+
+    fun mode(ctx: Context): Mode {
+        val k = prefs(ctx).getString("mode", null)
+        return Mode.entries.firstOrNull { it.key == k } ?: if (enabled(ctx)) Mode.RIDE else Mode.AA
+    }
+    fun setMode(ctx: Context, m: Mode) {
+        prefs(ctx).edit().putString("mode", m.key).putBoolean("enabled", m == Mode.RIDE).apply(); revision++
+    }
+
+    /** Speed alert: km/h over the limit before the speed turns red (0 = off). */
+    fun alertMargin(ctx: Context): Int = prefs(ctx).getInt("alert_margin", 10)
+    fun setAlertMargin(ctx: Context, kmh: Int) { prefs(ctx).edit().putInt("alert_margin", kmh).apply(); revision++ }
+    fun alertBeep(ctx: Context): Boolean = prefs(ctx).getBoolean("alert_beep", false)
+    fun setAlertBeep(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("alert_beep", on).apply(); revision++ }
+
+    /** Daylight theme while the sun is up, the chosen theme after sunset. */
+    fun autoTheme(ctx: Context): Boolean = prefs(ctx).getBoolean("auto_theme", false)
+    fun setAutoTheme(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("auto_theme", on).apply(); revision++ }
+    /** Dim the whole screen after sunset. */
+    fun nightDim(ctx: Context): Boolean = prefs(ctx).getBoolean("night_dim", false)
+    fun setNightDim(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("night_dim", on).apply(); revision++ }
+
+    /** Accent override, 0 = the theme's own. */
+    fun customAccent(ctx: Context): Int = prefs(ctx).getInt("accent", 0)
+    fun setCustomAccent(ctx: Context, color: Int) { prefs(ctx).edit().putInt("accent", color).apply(); revision++ }
+
+    fun hidden(ctx: Context): Set<String> = prefs(ctx).getStringSet("hidden", emptySet()) ?: emptySet()
+    fun setHidden(ctx: Context, f: Field, hide: Boolean) {
+        val next = HashSet(hidden(ctx)).apply { if (hide) add(f.key) else remove(f.key) }
+        prefs(ctx).edit().putStringSet("hidden", next).apply(); revision++
+    }
+
+    /** Is it dark out? From today's sunrise and sunset where the position is known, else the clock. */
+    fun isNight(lat: Double?, lon: Double?, now: Calendar = Calendar.getInstance()): Boolean {
+        val min = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val sun = if (lat != null && lon != null) RideData.sunTimes(lat, lon, now) else null
+        return if (sun != null && sun.second > sun.first) min < sun.first || min > sun.second else min < 6 * 60 || min >= 18 * 60
+    }
+
+    /** Over the limit by more than the margin? Pure, so it can be unit-tested. */
+    fun overLimit(speedKmh: Int, limitKmh: Int?, marginKmh: Int): Boolean =
+        limitKmh != null && limitKmh > 0 && marginKmh > 0 && speedKmh > limitKmh + marginKmh
 
     /** Next/previous preset (handlebar left/right). */
     fun cyclePreset(ctx: Context, delta: Int): Preset {
@@ -108,6 +172,12 @@ object RideData {
     @Volatile var nowPlaying = false
     @Volatile var nowReadAt = 0L
     @Volatile var phonePct: Int? = null
+    /** Metres climbed and descended this trip, from GPS altitude (rough). */
+    @Volatile var ascentM = 0.0
+    @Volatile var descentM = 0.0
+    /** Forecast rain per 15-minute slot starting now, mm. */
+    @Volatile var rainSlots: DoubleArray? = null
+    private var altRef: Double? = null
 
     /** Bumped whenever something changes, so the view only redraws when needed. */
     @Volatile var revision = 0
@@ -122,6 +192,7 @@ object RideData {
     @Synchronized
     fun resetTrip() {
         tripM = 0.0; movingMs = 0L; maxKmh = 0f; lastFix = null; lastFixAt = 0L
+        ascentM = 0.0; descentM = 0.0; altRef = null
         cueText = null; cueDist = null; arrival = null; remaining = null
         revision++
     }
@@ -130,7 +201,9 @@ object RideData {
     fun onFix(loc: Location, speed: Float) {
         val now = android.os.SystemClock.elapsedRealtime()
         // First fix after a long gap is a new ride.
-        if (lastFixAt > 0L && now - lastFixAt > 30 * 60_000L) { tripM = 0.0; movingMs = 0L; maxKmh = 0f; lastFix = null }
+        if (lastFixAt > 0L && now - lastFixAt > 30 * 60_000L) {
+            tripM = 0.0; movingMs = 0L; maxKmh = 0f; lastFix = null; ascentM = 0.0; descentM = 0.0; altRef = null
+        }
         val prev = lastFix
         if (prev != null && lastFixAt > 0L) {
             val dt = now - lastFixAt
@@ -145,11 +218,33 @@ object RideData {
         speedKmh = speed.coerceAtLeast(0f)
         if (speedKmh > maxKmh && speedKmh < 250f) maxKmh = speedKmh
         if (loc.hasBearing() && speedKmh > 5f) headingDeg = loc.bearing
-        if (loc.hasAltitude()) altitudeM = loc.altitude.toInt()
+        if (loc.hasAltitude()) {
+            altitudeM = loc.altitude.toInt()
+            // Climb and descent: only count steps bigger than GPS altitude noise.
+            if (!loc.hasAccuracy() || loc.accuracy < 25f) {
+                val (ref, up, down) = climbStep(altRef, loc.altitude)
+                altRef = ref; ascentM += up; descentM += down
+            }
+        }
         if (loc.hasAccuracy()) accuracyM = loc.accuracy.toInt()
         lat = loc.latitude; lon = loc.longitude
         revision++
     }
+
+    /**
+     * One altitude reading against the last counted level [ref]: returns the new level and the
+     * metres to add to climb and descent. Changes under [CLIMB_STEP_M] are treated as noise.
+     */
+    internal fun climbStep(ref: Double?, alt: Double): Triple<Double, Double, Double> {
+        if (ref == null) return Triple(alt, 0.0, 0.0)
+        val d = alt - ref
+        return when {
+            d >= CLIMB_STEP_M -> Triple(alt, d, 0.0)
+            d <= -CLIMB_STEP_M -> Triple(alt, 0.0, -d)
+            else -> Triple(ref, 0.0, 0.0)
+        }
+    }
+    private const val CLIMB_STEP_M = 5.0
 
     fun setCue(text: String?, dist: String?, arrivalAt: String?, left: String?) {
         cueText = text; cueDist = dist; arrival = arrivalAt; remaining = left

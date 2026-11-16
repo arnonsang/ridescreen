@@ -901,6 +901,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_aa_start).setOnClickListener { startAaScan() }
 
         findViewById<Button>(R.id.btn_mirror_start).setOnClickListener { onMirrorPressed() }
+        // "Mirror" chosen on the Dash screen page.
+        if (intent?.getBooleanExtra(EXTRA_START_MIRROR, false) == true) {
+            intent.removeExtra(EXTRA_START_MIRROR)
+            connectBtn.post { onMirrorPressed() }
+        }
         findViewById<View>(R.id.btn_gpx).setOnClickListener { onMapPressed() }
         // Rounded hero, and the bottom nav: shortcuts to what the tiles and the "More" row open.
         findViewById<View?>(R.id.hero_card)?.clipToOutline = true
@@ -1070,6 +1075,10 @@ class MainActivity : AppCompatActivity() {
         if (intent.getBooleanExtra(EXTRA_START_GPX, false)) {
             intent.removeExtra(EXTRA_START_GPX)
             beginGpxProjection()
+        }
+        if (intent.getBooleanExtra(EXTRA_START_MIRROR, false)) {
+            intent.removeExtra(EXTRA_START_MIRROR)
+            onMirrorPressed()
         }
     }
 
@@ -2950,6 +2959,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_START_GPX = "start_gpx"
+        /** Start phone-screen mirroring (from the Dash screen page). */
+        const val EXTRA_START_MIRROR = "start_mirror"
         const val EXTRA_BT_TRIGGER = "bt_trigger"
         const val EXTRA_WIDGET_CONNECT = "widget_connect"
         private const val ENGINE_ON_V = 13.2f

@@ -59,6 +59,24 @@ object RideFeeds {
         NowPlaying.ensure(app)
     }
 
+    @Volatile private var wasOver = false
+    @Volatile private var beepAt = 0L
+
+    /** Speed alert sound: one short beep when you go over the limit plus your margin, not a nag. */
+    fun speedAlert(ctx: Context) {
+        val over = RideScreen.overLimit(RideData.speedKmh.toInt(), RideData.limitKmh, RideScreen.alertMargin(ctx))
+        val now = SystemClock.elapsedRealtime()
+        if (over && !wasOver && RideScreen.alertBeep(ctx) && now - beepAt > 20_000L) {
+            beepAt = now
+            try {
+                val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 80)
+                tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 350)
+                main.postDelayed({ try { tg.release() } catch (_: Exception) {} }, 800L)
+            } catch (_: Exception) {}
+        }
+        wasOver = over
+    }
+
     /** Temperature now and when rain starts, from Open-Meteo (the service the rain alert already uses). */
     private fun weather(loc: Location) {
         val lat = String.format(Locale.ROOT, "%.2f", loc.latitude)
@@ -71,9 +89,11 @@ object RideFeeds {
         )
         val temp = root.optJSONObject("current")?.optDouble("temperature_2m", Double.NaN)
         RideData.tempC = temp?.takeIf { !it.isNaN() }?.toFloat()
-        RideData.rainNote = rainNote(root.optJSONObject("minutely_15")?.optJSONArray("precipitation")?.let { a ->
+        val slots = root.optJSONObject("minutely_15")?.optJSONArray("precipitation")?.let { a ->
             DoubleArray(a.length()) { a.optDouble(it, 0.0) }
-        })
+        }
+        RideData.rainSlots = slots
+        RideData.rainNote = rainNote(slots)
         RideData.touch()
     }
 

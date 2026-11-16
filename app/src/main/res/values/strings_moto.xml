@@ -32,6 +32,21 @@
     <string name="ride_allow">Tap to allow (Notification access)</string>
 
     <!-- Home headline and bottom nav. -->
+    <string name="ride_mode_mirror">Mirror</string>
+    <string name="ride_go_mirror">Mirror the phone on the dash</string>
+    <string name="ride_alert">Speed alert</string>
+    <string name="ride_alert_over">Red at %1$d km/h over the limit</string>
+    <string name="ride_alert_beep">Beep when over the limit</string>
+    <string name="ride_auto_theme">Daylight theme by day, yours at night</string>
+    <string name="ride_night_dim">Dim the screen after sunset</string>
+    <string name="ride_accent">Accent colour</string>
+    <string name="ride_accent_theme">The theme\'s own colour</string>
+    <string name="ride_show">Show on the ride screens</string>
+    <string name="ride_shown">Shown</string>
+    <string name="ride_hidden">Hidden</string>
+    <string name="share_dest_label">Ride there (RideScreen)</string>
+    <string name="share_dest_finding">Finding the place…</string>
+    <string name="share_dest_failed">Couldn\'t read that place. Share it from Google Maps\' place page, or search for it in the map.</string>
     <string name="headline_ready">Ready\nto ride.</string>
     <string name="headline_linking">Linking\nup…</string>
     <string name="headline_live">On the\ndash.</string>

@@ -30,11 +30,14 @@ class RideScreenActivity : AppCompatActivity() {
     private lateinit var preview: RideScreenView
     private lateinit var modeAa: TextView
     private lateinit var modeRide: TextView
+    private lateinit var modeMirror: TextView
+    private val optionRows = ArrayList<Pair<TextView, () -> String>>()
     private lateinit var go: MaterialButton
     private lateinit var nowRow: TextView
     private lateinit var autoRow: TextView
     private val presetViews = HashMap<RideScreen.Preset, TextView>()
     private val themeViews = HashMap<RideScreen.Theme, View>()
+    private val accentViews = HashMap<Int, TextView>()
 
     private val dp get() = resources.displayMetrics.density
     private fun px(v: Int) = (v * dp).toInt()
@@ -90,10 +93,12 @@ class RideScreenActivity : AppCompatActivity() {
             background = GradientDrawable().apply { cornerRadius = 28 * dp; setColor(color(R.color.surface)) }
             setPadding(px(4), px(4), px(4), px(4))
         }
-        modeAa = segment(getString(R.string.ride_mode_aa)) { setMode(false) }
-        modeRide = segment(getString(R.string.ride_mode_ride)) { setMode(true) }
+        modeAa = segment(getString(R.string.ride_mode_aa)) { setMode(RideScreen.Mode.AA) }
+        modeRide = segment(getString(R.string.ride_mode_ride)) { setMode(RideScreen.Mode.RIDE) }
+        modeMirror = segment(getString(R.string.ride_mode_mirror)) { setMode(RideScreen.Mode.MIRROR) }
         seg.addView(modeAa, LinearLayout.LayoutParams(0, px(48), 1f))
         seg.addView(modeRide, LinearLayout.LayoutParams(0, px(48), 1f))
+        seg.addView(modeMirror, LinearLayout.LayoutParams(0, px(48), 1f))
         col.addView(seg, lp(top = 18))
 
         col.addView(head(getString(R.string.ride_layout)), lp(top = 20))
@@ -132,6 +137,51 @@ class RideScreenActivity : AppCompatActivity() {
             AppSettings.setAutoDisconnect(this, !AppSettings.autoDisconnect(this)); render()
         }
         col.addView(autoRow, lp(top = 8))
+
+        // Each row shows its current value and changes it on tap.
+        fun row(label: String, value: () -> String, onTap: () -> Unit) {
+            val v = optionRow(label) { onTap(); render() }
+            optionRows += v to { label + "  ·  " + value() }
+            col.addView(v, lp(top = 8))
+        }
+        fun onOff(b: Boolean) = getString(if (b) R.string.ride_on else R.string.ride_off)
+        row(getString(R.string.ride_alert), {
+            RideScreen.alertMargin(this).let { if (it == 0) getString(R.string.ride_off) else getString(R.string.ride_alert_over, it) }
+        }) {
+            val steps = intArrayOf(0, 5, 10, 15, 20)
+            RideScreen.setAlertMargin(this, steps[(steps.indexOf(RideScreen.alertMargin(this)).coerceAtLeast(0) + 1) % steps.size])
+        }
+        row(getString(R.string.ride_alert_beep), { onOff(RideScreen.alertBeep(this)) }) {
+            RideScreen.setAlertBeep(this, !RideScreen.alertBeep(this))
+        }
+        row(getString(R.string.ride_auto_theme), { onOff(RideScreen.autoTheme(this)) }) {
+            RideScreen.setAutoTheme(this, !RideScreen.autoTheme(this))
+        }
+        row(getString(R.string.ride_night_dim), { onOff(RideScreen.nightDim(this)) }) {
+            RideScreen.setNightDim(this, !RideScreen.nightDim(this))
+        }
+
+        col.addView(head(getString(R.string.ride_accent)), lp(top = 20))
+        val accents = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        RideScreen.ACCENTS.forEachIndexed { i, c ->
+            val sw = TextView(this).apply {
+                contentDescription = if (c == 0) getString(R.string.ride_accent_theme) else String.format("#%06X", c and 0xFFFFFF)
+                gravity = Gravity.CENTER; textSize = 11f
+                if (c == 0) text = "A"
+                isClickable = true; isFocusable = true
+                setOnClickListener { RideScreen.setCustomAccent(this@RideScreenActivity, c); render() }
+            }
+            accentViews[c] = sw
+            accents.addView(sw, LinearLayout.LayoutParams(0, px(40), 1f).apply { if (i > 0) marginStart = px(6) })
+        }
+        col.addView(accents, lp(top = 8))
+
+        col.addView(head(getString(R.string.ride_show)), lp(top = 20))
+        RideScreen.Field.entries.forEach { f ->
+            row(f.label, { getString(if (f.key in RideScreen.hidden(this)) R.string.ride_hidden else R.string.ride_shown) }) {
+                RideScreen.setHidden(this, f, f.key !in RideScreen.hidden(this))
+            }
+        }
 
         col.addView(sub(getString(R.string.ride_keys)), lp(top = 20))
 
@@ -190,8 +240,8 @@ class RideScreenActivity : AppCompatActivity() {
         setOnClickListener { onTap() }
     }
 
-    private fun setMode(ride: Boolean) {
-        RideScreen.setEnabled(this, ride)
+    private fun setMode(m: RideScreen.Mode) {
+        RideScreen.setMode(this, m)
         render()
     }
 
@@ -202,7 +252,19 @@ class RideScreenActivity : AppCompatActivity() {
             v.background = if (on) GradientDrawable().apply { cornerRadius = 24 * dp; setColor(accent) } else null
             v.setTextColor(color(if (on) R.color.on_brand else R.color.text_secondary))
         }
-        paintSeg(modeAa, !ride); paintSeg(modeRide, ride)
+        val mode = RideScreen.mode(this)
+        paintSeg(modeAa, mode == RideScreen.Mode.AA); paintSeg(modeRide, mode == RideScreen.Mode.RIDE)
+        paintSeg(modeMirror, mode == RideScreen.Mode.MIRROR)
+        optionRows.forEach { (v, text) -> v.text = text() }
+        val own = RideScreen.customAccent(this)
+        accentViews.forEach { (c, v) ->
+            v.background = GradientDrawable().apply {
+                cornerRadius = 12 * dp
+                setColor(if (c == 0) color(R.color.surface) else c)
+                setStroke(px(3), if (c == own) color(R.color.text_primary) else color(R.color.bg))
+            }
+            v.setTextColor(color(R.color.text_secondary))
+        }
 
         val preset = RideScreen.preset(this)
         presetViews.forEach { (p, v) ->
@@ -228,7 +290,13 @@ class RideScreenActivity : AppCompatActivity() {
         preview.presetOverride = preset
         preview.themeOverride = theme
         preview.alpha = if (ride) 1f else 0.45f
-        go.text = getString(if (ride) R.string.ride_go_ride else R.string.ride_go_aa)
+        go.text = getString(
+            when (mode) {
+                RideScreen.Mode.RIDE -> R.string.ride_go_ride
+                RideScreen.Mode.MIRROR -> R.string.ride_go_mirror
+                RideScreen.Mode.AA -> R.string.ride_go_aa
+            },
+        )
         nowRow.text = getString(R.string.ride_now_playing) + "  ·  " +
             getString(if (RideFeeds.NowPlaying.hasAccess(this)) R.string.ride_on else R.string.ride_allow)
         autoRow.text = getString(R.string.ride_auto_disconnect) + "  ·  " +
@@ -241,6 +309,16 @@ class RideScreenActivity : AppCompatActivity() {
      * the normal connect with the saved bike.
      */
     private fun start() {
+        if (RideScreen.mode(this) == RideScreen.Mode.MIRROR) {
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra(MainActivity.EXTRA_START_MIRROR, true)
+                },
+            )
+            finish()
+            return
+        }
         val ride = RideScreen.enabled(this)
         if (ride) {
             ProjectionHolder.projection?.let { try { it.stop() } catch (_: Exception) {} }

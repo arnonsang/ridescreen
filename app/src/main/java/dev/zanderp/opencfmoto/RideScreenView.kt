@@ -58,7 +58,14 @@ class RideScreenView @JvmOverloads constructor(
     private val rect = RectF()
     private val path = Path()
 
-    private lateinit var t: RideScreen.Theme
+    /** The colours in use for this frame: a theme, possibly with the rider's own accent. */
+    private class Pal(
+        val bg: Int, val surf: Int, val ink: Int, val mute: Int, val line: Int,
+        val accent: Int, val accent2: Int, val onAccent: Int, val light: Boolean,
+    )
+    private lateinit var t: Pal
+    private var hid: Set<String> = emptySet()
+    private fun hide(f: RideScreen.Field) = f.key in hid
     private var lastSeenRev = -1
 
     /**
@@ -118,18 +125,23 @@ class RideScreenView @JvmOverloads constructor(
 
     private class V(
         val speed: Int, val heading: Float?, val alt: Int?, val acc: Int?,
-        val tripKm: String, val tripMin: String, val max: Int, val avg: Int, val limit: Int?,
+        val tripKm: String, val tripMin: String, val max: Int, val avg: Int, var limit: Int?,
         val cue: String?, val cueDist: String?, val street: String?,
-        val temp: String, val rain: String?, val volts: Float?, val range: Int?,
-        val now: String?, val phone: Int?, val lat: Double?, val lon: Double?,
-        val title: String? = null, val artist: String? = null, val progress: Float? = null,
+        var temp: String, var rain: String?, var volts: Float?, var range: Int?,
+        var now: String?, val phone: Int?, val lat: Double?, val lon: Double?,
+        var title: String? = null, var artist: String? = null, val progress: Float? = null,
         val arrival: String? = null, val remaining: String? = null,
+        val over: Boolean = false, val ascent: Int? = null, val descent: Int? = null, val rain15: DoubleArray? = null,
     )
+
+    private fun speedInk(v: V) = if (v.over) 0xFFFF6B5E.toInt() else t.ink
 
     private fun values(): V = if (demo) {
         V(demoSpeed, 42f, 214, 4, "9.2", "24", 71, 38, 60, "Turn right", "300 m", "Main road",
             "31°", "Rain in about 40 min", 12.6f, 140, "Track title · Artist", 99, 13.9, 100.5,
-            "Track title", "Artist", 0.42f, "19:05", "12 km")
+            "Track title", "Artist", 0.42f, "19:05", "12 km",
+            over = RideScreen.overLimit(demoSpeed, 60, RideScreen.alertMargin(context)), ascent = 120, descent = 85,
+            rain15 = doubleArrayOf(0.0, 0.0, 0.2, 0.9, 1.6, 1.1, 0.4, 0.0))
     } else {
         val d = RideData
         V(
@@ -141,6 +153,8 @@ class RideScreenView @JvmOverloads constructor(
             listOfNotNull(d.nowTitle, d.nowArtist).joinToString(" · ").ifBlank { null },
             d.phonePct ?: phoneBattery(), d.lat, d.lon,
             d.nowTitle, d.nowArtist, nowProgress(), d.arrival, d.remaining,
+            over = RideScreen.overLimit(d.speedKmh.toInt(), d.limitKmh, RideScreen.alertMargin(context)),
+            ascent = d.ascentM.toInt(), descent = d.descentM.toInt(), rain15 = d.rainSlots,
         )
     }
 
@@ -226,6 +240,7 @@ class RideScreenView @JvmOverloads constructor(
     }
 
     private fun limitSign(c: Canvas, cx: Float, cy: Float, r: Float, limit: Int?) {
+        if (hide(RideScreen.Field.LIMIT)) return
         fill.shader = null; fill.color = Color.WHITE; c.drawCircle(cx, cy, r, fill)
         stroke.strokeWidth = r * 0.2f; stroke.color = if (limit != null) 0xFFFF6B5E.toInt() else t.mute
         c.drawCircle(cx, cy, r - stroke.strokeWidth / 2, stroke)
@@ -348,12 +363,12 @@ class RideScreenView @JvmOverloads constructor(
         label(c, "Cruise", 48f, 40f, 18f, t.mute)
         // Three digits need a smaller size to stay clear of the tiles.
         val big = if (v.speed >= 100) 215f else 290f
-        numText(c, v.speed.toString(), 24f, 326f, big, t.ink, glow = true)
+        numText(c, v.speed.toString(), 24f, 326f, big, speedInk(v), glow = true)
         text.typeface = num; text.textSize = big
         val sw = text.measureText(v.speed.toString())
         numText(c, "KM/H", 24f + sw + 14f, 326f, if (v.speed >= 100) 34f else 44f, t.accent)
         limitSign(c, 50f, 379f, 22f, v.limit)
-        label(c, if (v.limit != null) "Limit, from the map" else "No limit data here", 84f, 386f, 18f, t.mute)
+        if (!hide(RideScreen.Field.LIMIT)) label(c, if (v.limit != null) "Limit, from the map" else "No limit data here", 84f, 386f, 18f, t.mute)
 
         val x0 = 452f; val x1 = 996f; val gap = 12f
         val tw = (x1 - x0 - gap) / 2; val th = 134f
@@ -365,8 +380,9 @@ class RideScreenView @JvmOverloads constructor(
         }
         tile(0, 0, "${v.tripKm} KM", "Trip · ${v.tripMin} min", t.accent)
         tile(1, 0, clock(), "Max ${v.max} · avg ${v.avg} km/h", t.ink)
-        tile(0, 1, v.temp, v.rain ?: "Weather", t.accent2)
-        tile(1, 1, v.volts?.let { String.format(Locale.US, "%.1f V", it) } ?: "—", "Bike battery", t.accent2)
+        if (!hide(RideScreen.Field.WEATHER)) tile(0, 1, v.temp, v.rain ?: "Weather", t.accent2)
+        else tile(0, 1, v.alt?.let { "$it M" } ?: "—", "Altitude", t.accent2)
+        if (!hide(RideScreen.Field.BATTERY)) tile(1, 1, v.volts?.let { String.format(Locale.US, "%.1f V", it) } ?: "—", "Bike battery", t.accent2)
 
         val sy = 24f + 2 * (th + gap)
         accentPanel(c, x0, sy, x1, DH - 24f, 22f)
@@ -382,13 +398,13 @@ class RideScreenView @JvmOverloads constructor(
         barCard(c, 24f, 309f, 286f, 405f, "Trip · ${v.tripMin} min", "${v.tripKm} KM", (v.tripKm.toFloatOrNull() ?: 0f) / 50f, t.accent2)
 
         speedArc(c, 512f, 225f, 170f, v.speed)
-        numText(c, v.speed.toString(), 512f, 262f, 150f, t.ink, Paint.Align.CENTER, glow = true)
+        numText(c, v.speed.toString(), 512f, 262f, 150f, speedInk(v), Paint.Align.CENTER, glow = true)
         numText(c, "KM/H", 512f, 296f, 26f, t.accent, Paint.Align.CENTER)
         limitSign(c, 512f, 388f, 27f, v.limit)
 
         val l = 738f; val r = 1000f; val h = (385f - 24f) / 3
-        barCard(c, l, 20f, r, 20f + h, "Fuel range", v.range?.let { "$it KM" } ?: "—", v.range?.let { it / 260f }, t.accent)
-        barCard(c, l, 32f + h, r, 32f + 2 * h, "Bike battery", v.volts?.let { String.format(Locale.US, "%.1f V", it) } ?: "—",
+        if (!hide(RideScreen.Field.RANGE)) barCard(c, l, 20f, r, 20f + h, "Fuel range", v.range?.let { "$it KM" } ?: "—", v.range?.let { it / 260f }, t.accent)
+        if (!hide(RideScreen.Field.BATTERY)) barCard(c, l, 32f + h, r, 32f + 2 * h, "Bike battery", v.volts?.let { String.format(Locale.US, "%.1f V", it) } ?: "—",
             v.volts?.let { (it - 11f) / 3.5f }, 0xFF5BD47A.toInt())
         card(c, l, 44f + 2 * h, r, 44f + 3 * h)
         val mid = 44f + 2.5f * h
@@ -481,7 +497,7 @@ class RideScreenView @JvmOverloads constructor(
             label(c, "Search a place in the map menu", 48f, 334f, 17f, t.onAccent, maxW = 330f)
         }
         val w = (1000f - 424f - 24f) / 3
-        statTile(c, 424f, 293f, 424f + w, 405f, v.speed.toString(), "km/h" + (v.limit?.let { " · limit $it" } ?: ""), t.ink, 60f)
+        statTile(c, 424f, 293f, 424f + w, 405f, v.speed.toString(), "km/h" + (v.limit?.let { " · limit $it" } ?: ""), speedInk(v), 60f)
         statTile(c, 436f + w, 293f, 436f + 2 * w, 405f, v.arrival ?: clock(), if (v.arrival != null) "Arrival" else "Clock", t.accent2, 60f)
         statTile(c, 448f + 2 * w, 293f, 1000f, 405f, (v.remaining ?: "${v.tripKm} km").uppercase(Locale.US), if (v.remaining != null) "To go" else "Trip", t.ink, 60f)
     }
@@ -506,7 +522,7 @@ class RideScreenView @JvmOverloads constructor(
         statTile(c, 776f, 96f, 996f, 214f, v.max.toString(), "Max today", t.accent2, 58f)
         statTile(c, 776f, 228f, 996f, 346f, v.alt?.let { "$it M" } ?: "—", "Altitude", t.ink, 58f)
         val big = if (v.speed >= 100) 250f else 310f
-        numText(c, v.speed.toString(), 512f, 330f, big, t.ink, Paint.Align.CENTER, glow = true)
+        numText(c, v.speed.toString(), 512f, 330f, big, speedInk(v), Paint.Align.CENTER, glow = true)
         numText(c, "KM/H", 512f, 384f, 40f, t.accent, Paint.Align.CENTER)
         limitSign(c, 60f, 382f, 22f, v.limit)
         label(c, "${v.tripKm} km · ${clock()}", 996f, 390f, 18f, t.mute, Paint.Align.RIGHT)
@@ -518,7 +534,7 @@ class RideScreenView @JvmOverloads constructor(
         noteIcon(c, 136f, 120f, 160f, t.onAccent)
         val x = 430f
         label(c, if (v.title != null) "Now playing" else "Nothing playing", x, 46f, 18f, t.mute)
-        numText(c, v.speed.toString(), 930f, 78f, 78f, t.ink, Paint.Align.RIGHT)
+        numText(c, v.speed.toString(), 930f, 78f, 78f, speedInk(v), Paint.Align.RIGHT)
         numText(c, "KM/H", 996f, 78f, 26f, t.accent, Paint.Align.RIGHT)
         text.typeface = num; text.textSize = 84f
         var title = (v.title ?: "—").uppercase(Locale.US)
@@ -557,7 +573,7 @@ class RideScreenView @JvmOverloads constructor(
         numText(c, "${v.tripKm} KM", 28f, 322f, 64f, t.ink)
         label(c, "Trip · ${v.tripMin} min · max ${v.max}", 28f, 352f, 17f, t.mute)
         val big = if (v.speed >= 100) 170f else 210f
-        numText(c, v.speed.toString(), 512f, 390f, big, t.ink, Paint.Align.CENTER, glow = true)
+        numText(c, v.speed.toString(), 512f, 390f, big, speedInk(v), Paint.Align.CENTER, glow = true)
         text.typeface = num; text.textSize = big
         numText(c, "KM/H", 512f + text.measureText(v.speed.toString()) / 2 + 12f, 390f, 34f, t.accent)
         limitSign(c, 774f, 320f, 32f, v.limit)
@@ -576,7 +592,7 @@ class RideScreenView @JvmOverloads constructor(
         c.drawLine(bx, by, nx, ny, stroke); stroke.strokeCap = Paint.Cap.BUTT
         fill.shader = null; fill.color = t.ink; c.drawCircle(cx, cy, 16f, fill)
         fill.color = t.bg; c.drawCircle(cx, cy, 7f, fill)
-        numText(c, v.speed.toString(), cx, cy + 164f, 62f, t.ink, Paint.Align.CENTER)
+        numText(c, v.speed.toString(), cx, cy + 164f, 62f, speedInk(v), Paint.Align.CENTER)
         numText(c, "KM/H", cx, cy + 186f, 18f, t.accent, Paint.Align.CENTER)
 
         compass(c, 834f, 212f, 150f, v.heading)
@@ -585,8 +601,8 @@ class RideScreenView @JvmOverloads constructor(
         val l = 384f; val rr = 656f
         numText(c, clock(), l, 84f, 78f, t.ink)
         limitSign(c, rr - 28f, 58f, 27f, v.limit)
-        barCard(c, l, 104f, rr, 196f, "Fuel range", v.range?.let { "$it KM" } ?: "—", v.range?.let { it / 260f }, t.accent)
-        barCard(c, l, 208f, rr, 300f, "Bike battery", volts(v), v.volts?.let { (it - 11f) / 3.5f }, 0xFF5BD47A.toInt())
+        if (!hide(RideScreen.Field.RANGE)) barCard(c, l, 104f, rr, 196f, "Fuel range", v.range?.let { "$it KM" } ?: "—", v.range?.let { it / 260f }, t.accent)
+        if (!hide(RideScreen.Field.BATTERY)) barCard(c, l, 208f, rr, 300f, "Bike battery", volts(v), v.volts?.let { (it - 11f) / 3.5f }, 0xFF5BD47A.toInt())
         accentPanel(c, l, 314f, rr, 392f, 18f)
         label(c, v.now ?: "${v.tripKm} km · ${v.tripMin} min", l + 18f, 360f, 18f, t.onAccent, maxW = rr - l - 36f)
     }
@@ -667,9 +683,124 @@ class RideScreenView @JvmOverloads constructor(
         }
     }
 
+    /** Big needle speedometer in the middle, two small stats each side. */
+    private fun drawClassic(c: Canvas, v: V) {
+        background(c)
+        val cx = 512f; val cy = 222f; val r = 186f
+        speedArc(c, cx, cy, r, v.speed, 24f)
+        val a = 135f + 270f * v.speed.coerceIn(0, MAX_SPEED.toInt()) / MAX_SPEED
+        val (nx, ny) = pol(cx, cy, r - 26f, a); val (bx, by) = pol(cx, cy, -28f, a)
+        stroke.shader = null; stroke.strokeWidth = 8f; stroke.strokeCap = Paint.Cap.ROUND
+        stroke.color = if (v.over) 0xFFFF6B5E.toInt() else t.accent2
+        c.drawLine(bx, by, nx, ny, stroke); stroke.strokeCap = Paint.Cap.BUTT
+        fill.shader = null; fill.color = t.ink; c.drawCircle(cx, cy, 18f, fill)
+        fill.color = t.bg; c.drawCircle(cx, cy, 8f, fill)
+        numText(c, v.speed.toString(), cx, 396f, 72f, speedInk(v), Paint.Align.CENTER)
+        numText(c, "KM/H", cx, 418f, 18f, t.accent, Paint.Align.CENTER)
+        limitSign(c, cx, 292f, 24f, v.limit)
+        statTile(c, 24f, 60f, 264f, 196f, "${v.tripKm} KM", "Trip · ${v.tripMin} min", t.accent, 56f)
+        statTile(c, 24f, 212f, 264f, 348f, clock(), "Max ${v.max} · avg ${v.avg}", t.ink, 56f)
+        if (!hide(RideScreen.Field.WEATHER)) statTile(c, 760f, 60f, 1000f, 196f, v.temp, v.rain ?: "Weather", t.accent2, 56f)
+        else statTile(c, 760f, 60f, 1000f, 196f, RideData.headingLabel(v.heading), "Heading", t.accent2, 56f)
+        if (!hide(RideScreen.Field.BATTERY)) statTile(c, 760f, 212f, 1000f, 348f, volts(v), "Bike battery", t.ink, 56f)
+        label(c, v.now ?: "", 512f, 34f, 16f, t.mute, Paint.Align.CENTER, maxW = 420f)
+    }
+
+    /** Weather first: when the rain comes, with speed, trip, range and battery around it. */
+    private fun drawCommute(c: Canvas, v: V) {
+        background(c)
+        label(c, "Commute", 28f, 44f, 18f, t.mute)
+        val big = if (v.speed >= 100) 160f else 210f
+        numText(c, v.speed.toString(), 24f, 300f, big, speedInk(v), glow = true)
+        numText(c, "KM/H", 28f, 340f, 32f, t.accent)
+        numText(c, clock(), 28f, 398f, 52f, t.ink)
+        limitSign(c, 262f, 372f, 26f, v.limit)
+
+        card(c, 320f, 24f, 754f, 401f, 26f)
+        numText(c, v.temp, 344f, 104f, 84f, t.accent2)
+        label(c, "Where you are now", 344f, 132f, 17f, t.mute)
+        if (v.rain != null) {
+            accentPanel(c, 500f, 44f, 734f, 88f, 22f)
+            label(c, v.rain!!, 617f, 73f, 17f, t.onAccent, Paint.Align.CENTER, maxW = 214f)
+        }
+        val slots = v.rain15
+        val n = 8; val gl = 344f; val gr = 730f; val gap = 8f; val base = 352f
+        val bw = (gr - gl - gap * (n - 1)) / n
+        fill.shader = null
+        for (i in 0 until n) {
+            val mm = slots?.getOrNull(i) ?: 0.0
+            val h = (mm * 62.0).toFloat().coerceIn(6f, 150f)
+            fill.color = if (mm > 0.0) t.accent2 else t.line
+            rect.set(gl + i * (bw + gap), base - h, gl + i * (bw + gap) + bw, base)
+            c.drawRoundRect(rect, 6f, 6f, fill)
+        }
+        label(c, "Now", gl, 384f, 15f, t.mute)
+        label(c, "+1 h", (gl + gr) / 2, 384f, 15f, t.mute, Paint.Align.CENTER)
+        label(c, "+2 h", gr, 384f, 15f, t.mute, Paint.Align.RIGHT)
+        if (slots == null) label(c, "Rain forecast needs internet", (gl + gr) / 2, 250f, 16f, t.mute, Paint.Align.CENTER)
+
+        val h = (377f - 24f) / 3
+        statTile(c, 770f, 24f, 1000f, 24f + h, "${v.tripKm} KM", "Trip · ${v.tripMin} min", t.ink, 50f)
+        if (!hide(RideScreen.Field.RANGE)) statTile(c, 770f, 36f + h, 1000f, 36f + 2 * h, v.range?.let { "~$it KM" } ?: "—", "Range, from fuel log", t.accent, 50f)
+        if (!hide(RideScreen.Field.BATTERY)) statTile(c, 770f, 48f + 2 * h, 1000f, 48f + 3 * h, volts(v), "Bike battery", t.ink, 50f)
+    }
+
+    /** Every number of the ride at once. */
+    private fun drawTrip(c: Canvas, v: V) {
+        background(c)
+        label(c, "Trip computer", 28f, 44f, 18f, t.mute)
+        val big = if (v.speed >= 100) 150f else 190f
+        numText(c, v.speed.toString(), 24f, 270f, big, speedInk(v), glow = true)
+        numText(c, "KM/H", 28f, 306f, 30f, t.accent)
+        numText(c, clock(), 28f, 392f, 56f, t.ink)
+        limitSign(c, 250f, 366f, 26f, v.limit)
+        val x0 = 300f; val gap = 12f; val cols = 4
+        val w = (1000f - x0 - gap * (cols - 1)) / cols; val h = (377f - gap) / 2
+        val cells = listOf(
+            Triple("${v.tripKm} KM", "Distance", t.accent), Triple("${v.tripMin} MIN", "Riding time", t.ink),
+            Triple(v.avg.toString(), "Average km/h", t.ink), Triple(v.max.toString(), "Max km/h", t.accent2),
+            Triple(v.ascent?.let { "$it M" } ?: "—", "Climbed", t.accent2), Triple(v.descent?.let { "$it M" } ?: "—", "Descended", t.ink),
+            Triple(v.alt?.let { "$it M" } ?: "—", "Altitude", t.ink),
+            if (hide(RideScreen.Field.RANGE)) Triple(RideData.headingLabel(v.heading), "Heading", t.accent)
+            else Triple(v.range?.let { "~$it KM" } ?: "—", "Fuel range", t.accent),
+        )
+        cells.forEachIndexed { i, (value, name, color) ->
+            val l = x0 + (i % cols) * (w + gap); val tp = 24f + (i / cols) * (h + gap)
+            statTile(c, l, tp, l + w, tp + h, value, name, color, 46f)
+        }
+    }
+
+    /** Almost nothing, for riding in the dark: speed, clock and heading on black. */
+    private fun drawNight(c: Canvas, v: V) {
+        fill.shader = null; fill.color = Color.BLACK
+        c.drawRect(-2000f, -2000f, DW + 2000f, DH + 2000f, fill)
+        val dim = if (t.light) 0xFFC9CCD3.toInt() else t.ink
+        numText(c, clock(), 40f, 216f, 96f, dim)
+        label(c, "${v.tripKm} km · ${v.tripMin} min", 40f, 250f, 20f, 0xFF8A909C.toInt())
+        val big = if (v.speed >= 100) 260f else 340f
+        numText(c, v.speed.toString(), 512f, 330f, big, if (v.over) 0xFFFF6B5E.toInt() else if (t.light) 0xFFD1A955.toInt() else t.accent, Paint.Align.CENTER)
+        numText(c, "KM/H", 512f, 388f, 36f, dim, Paint.Align.CENTER)
+        numText(c, RideData.headingLabel(v.heading), 984f, 216f, 96f, if (t.light) dim else t.accent2, Paint.Align.RIGHT)
+        label(c, "Heading", 984f, 250f, 20f, 0xFF8A909C.toInt(), Paint.Align.RIGHT)
+        limitSign(c, 944f, 360f, 28f, v.limit)
+    }
+
     override fun onDraw(canvas: Canvas) {
         if (width == 0 || height == 0) return
-        t = themeOverride ?: RideScreen.theme(context)
+        hid = RideScreen.hidden(context)
+        val night = RideScreen.isNight(if (demo) null else RideData.lat, if (demo) null else RideData.lon)
+        var theme = themeOverride ?: RideScreen.theme(context)
+        // Auto: Daylight while the sun is up; after sunset the rider's own (dark) theme.
+        if (!demo && RideScreen.autoTheme(context)) {
+            theme = if (!night) RideScreen.Theme.DAYLIGHT
+            else if (theme == RideScreen.Theme.DAYLIGHT) RideScreen.Theme.GOLD else theme
+        }
+        val own = RideScreen.customAccent(context)
+        val accent = if (own != 0) own else theme.accent
+        // Dark or light text on the accent, whichever reads better.
+        val lum = (0.299 * Color.red(accent) + 0.587 * Color.green(accent) + 0.114 * Color.blue(accent)) / 255.0
+        t = Pal(theme.bg, theme.surf, theme.ink, theme.mute, theme.line, accent, theme.accent2,
+            if (own == 0) theme.onAccent else if (lum > 0.55) 0xFF0B0C0E.toInt() else Color.WHITE, theme.light)
         val preset = presetOverride ?: RideScreen.preset(context)
         lastSeenRev = RideData.revision
         val s = min(width / DW, height / DH)
@@ -677,6 +808,11 @@ class RideScreenView @JvmOverloads constructor(
         canvas.translate((width - DW * s) / 2f, (height - DH * s) / 2f)
         canvas.scale(s, s)
         val v = values()
+        // Hidden fields: blank them once here so every layout treats them as "nothing to show".
+        if (hide(RideScreen.Field.WEATHER)) { v.temp = "—"; v.rain = null }
+        if (hide(RideScreen.Field.BATTERY)) v.volts = null
+        if (hide(RideScreen.Field.RANGE)) v.range = null
+        if (hide(RideScreen.Field.MUSIC)) { v.now = null; v.title = null; v.artist = null }
         when (preset) {
             RideScreen.Preset.CRUISE -> drawCruise(canvas, v)
             RideScreen.Preset.STREET -> drawStreet(canvas, v)
@@ -686,6 +822,15 @@ class RideScreenView @JvmOverloads constructor(
             RideScreen.Preset.MUSIC -> drawMusic(canvas, v)
             RideScreen.Preset.RACE -> drawRace(canvas, v)
             RideScreen.Preset.TWIN -> drawTwin(canvas, v)
+            RideScreen.Preset.CLASSIC -> drawClassic(canvas, v)
+            RideScreen.Preset.COMMUTE -> drawCommute(canvas, v)
+            RideScreen.Preset.TRIP -> drawTrip(canvas, v)
+            RideScreen.Preset.NIGHT -> drawNight(canvas, v)
+        }
+        if (!demo && night && RideScreen.nightDim(context) && preset != RideScreen.Preset.NIGHT) {
+            // After sunset: take the whole screen down a notch so it doesn't glare.
+            fill.shader = null; fill.color = alpha(Color.BLACK, 95)
+            canvas.drawRect(-2000f, -2000f, DW + 2000f, DH + 2000f, fill)
         }
         canvas.restoreToCount(save)
     }

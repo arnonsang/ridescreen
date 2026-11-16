@@ -2213,7 +2213,10 @@ class GpxDashUi(
             wSpeed.text = GpxNav.formatSpeed(speedKmh, units)
             // Feed the ride screens; the cue texts are read back once this pass has set them.
             RideData.onFix(loc, speedKmh)
-            if (projected && RideScreen.enabled(context)) RideFeeds.onFix(context, loc)
+            if (projected && RideScreen.enabled(context)) {
+                RideFeeds.onFix(context, loc)
+                RideFeeds.speedAlert(context)
+            }
             main.post {
                 if (released || !isAlive()) return@post
                 val navigating = maneuverRow.visibility == View.VISIBLE

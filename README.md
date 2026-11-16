@@ -17,19 +17,24 @@ Not affiliated with Zontes, CFMoto or Google. Android Auto is a trademark of Goo
 
 ### Ride screens on the dash
 
-<img src="docs/screenshots/fork/ride-screens.png" alt="The eight ride screen layouts in different colour themes" width="820"/>
+<img src="docs/screenshots/fork/ride-screens.png" alt="Ride screen layouts in different colour themes" width="820"/>
 
 *Rendered by the app's drawing code with sample values.*
 
-- **Eight layouts:** Cruise, Street (arc speedometer), Ride hub (live map in the middle), Tourer (next turn and map), Sport, Music, Race bar and Twin dials.
-- **Five colour themes:** Gold 368K, Racing red, Neon night, Sunset and Daylight.
-- **Dash screen page on the phone:** preview, Android Auto / Ride screen switch, layout and theme pickers. Changes apply to a running session.
+- **Twelve layouts:** Cruise, Street (arc speedometer), Ride hub (live map in the middle), Tourer (next turn and map), Sport, Music, Race bar, Twin dials, Classic (needle speedometer), Commute (rain timeline), Trip computer and Night.
+- **Five colour themes:** Gold 368K, Racing red, Neon night, Sunset and Daylight, plus your own accent colour. Optional: Daylight by day and your theme at night, and dimming after sunset.
+- **Dash screen page on the phone:** preview, Android Auto / Ride screen / Mirror switch, layout and theme pickers, and which information to show or hide. Changes apply to a running session.
+- **Speed alert:** the speed turns red when you are over the limit by a margin you set, with an optional beep.
 - **Handlebar:** left and right change the layout, Select changes the theme, Home shows the full map, Back returns. The voice button opens the phone's own assistant.
-- **What they show:** GPS speed, trip, max and average speed, heading, altitude, clock, next turn and speed limit from the built-in map, temperature and rain timing, the street you are on, fuel range from the refuel log, bike battery voltage (keyless box), sunrise and sunset, and what the phone is playing.
+- **What they show:** GPS speed, trip, max and average speed, heading, altitude, clock, next turn and speed limit from the built-in map, temperature and rain timing, the street you are on, fuel range from the refuel log, bike battery voltage (keyless box), sunrise and sunset, metres climbed and descended, and what the phone is playing.
 
 The bike does not send RPM, gear, fuel level or engine temperature to the app, so the gauges are driven by speed, range, battery and heading.
 
 The ride screens run on the built-in map session: they are drawn over the map, and two layouts leave a window for it.
+
+### Navigation
+
+- **Share a place from Google Maps** (or open a `geo:` link) and choose "Ride there (RideScreen)": it becomes the destination on the built-in map.
 
 ### Connection
 

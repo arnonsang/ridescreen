@@ -207,6 +207,9 @@ class AndroidAutoService : Service() {
                 wifiDownSince = now
                 LogBus.log("[AA] bike transport unavailable (ap=$apConnected p2p=$p2pConnected) — starting grace")
             }
+            else if (AppSettings.autoDisconnect(this) && now - wifiDownSince > AUTO_DISCONNECT_MS && !ridingNow()) {
+                autoDisconnect(now - wifiDownSince)
+            }
             else if (now - wifiDownSince > GRACE_MS) parkAa()
         } else {
             if (wifiDownSince != 0L) {
@@ -685,6 +688,29 @@ class AndroidAutoService : Service() {
         watchdogHandler.post { fullTeardown() }
     }
 
+    /**
+     * GPS says we are moving at riding speed. The dash's Wi-Fi can blink mid-ride; a rider who
+     * switched the bike off, or is walking away from it, is at walking pace or has no fresh fix.
+     */
+    private fun ridingNow(): Boolean = try {
+        RideExtras.lastLocation(this, RIDING_FIX_MAX_AGE_MS)
+            ?.let { it.hasSpeed() && it.speed > RIDING_MIN_SPEED_MS } == true
+    } catch (_: Exception) {
+        false
+    }
+
+    /**
+     * The bike has been gone for [AUTO_DISCONNECT_MS] and we are not riding: it was switched off or
+     * the rider left. Stop everything now (Android Auto gets its goodbye) rather than holding the
+     * session for minutes. With "wait for the bike" on, the low-power watcher keeps looking for the
+     * bike's Wi-Fi so the next ride still connects by itself.
+     */
+    private fun autoDisconnect(goneMs: Long) {
+        LogBus.log("[AA] bike gone ${goneMs / 1000}s and not riding — auto-disconnecting")
+        wifiDownSince = 0L
+        RideStop.stopAll(applicationContext, reason = "bike switched off or out of range")
+    }
+
     /** A drop is only worth a relaunch while this service still hosts a receiver for a live connect. */
     private fun canRelaunchAa(): Boolean {
         if (!isRunning || aaParked || receiver == null) return false
@@ -763,6 +789,9 @@ class AndroidAutoService : Service() {
         private const val ERROR_COOLDOWN_MS = 20_000L  // min gap between re-arm attempts after ERROR
         private const val GRACE_MS = 180_000L          // SoftAP blinks; 60s was parking mid-ride
         private const val RESUME_STEADY_TIMEOUT_MS = 12_000L // wait for AA video before falling back
+        private const val AUTO_DISCONNECT_MS = 45_000L       // bike gone this long while not riding: stop
+        private const val RIDING_MIN_SPEED_MS = 3f           // ~11 km/h: above walking pace
+        private const val RIDING_FIX_MAX_AGE_MS = 15_000L
         private const val AA_GONE_REPORT_MS = 8_000L         // AA dropped, retries spent: then say so
 
         internal fun bikeTransportConnected(apConnected: Boolean, p2pConnected: Boolean, liveLink: Boolean = false): Boolean =

@@ -46,6 +46,13 @@ object AppSettings {
         prefs(ctx).edit().putBoolean(KEY_AUTO_CONNECT, on).apply()
 
     /** v2.2: after 20 min without the bike, keep waiting for its Wi-Fi in low-power mode. */
+    /**
+     * Disconnect on its own shortly after the bike switches off or the rider walks away, instead of
+     * holding Android Auto for minutes in case the link comes back. On by default.
+     */
+    fun autoDisconnect(ctx: Context): Boolean = prefs(ctx).getBoolean("auto_disconnect", true)
+    fun setAutoDisconnect(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("auto_disconnect", on).apply()
+
     fun waitForBike(ctx: Context): Boolean = prefs(ctx).getBoolean("wait_for_bike", true)
     fun setWaitForBike(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("wait_for_bike", on).apply()
 

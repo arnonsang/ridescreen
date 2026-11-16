@@ -46,6 +46,13 @@ android {
             ?: ""
         buildConfigField("String", "TELEMETRY_URL", "\"$telemetryUrl\"")
 
+        // Where the in-app updater looks for releases: the repository that built this APK
+        // (GITHUB_REPOSITORY in Actions), or -PupdateRepo=owner/name for a local build.
+        val updateRepo = (project.findProperty("updateRepo") as String?)
+            ?: System.getenv("GITHUB_REPOSITORY")
+            ?: "arnonsang/ridescreen"
+        buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
+
         // Short git hash for Share Logs triage (configuration-cache safe).
         val gitHash = providers.exec {
             commandLine("git", "rev-parse", "--short", "HEAD")

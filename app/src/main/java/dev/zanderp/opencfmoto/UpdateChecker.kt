@@ -19,9 +19,14 @@ object UpdateChecker {
      * RideScreen AA: releases are published as vN on this repo and signed with the fork's key, so an
      * upstream (zanderp) APK can't install over it — never offer one. See [isNewerFork].
      */
-    const val REPO = "mgb1982/ridescreen-aa"
+    /**
+     * Updates are only ever offered from the repository this APK was built from (the GitHub
+     * Actions run's own repo, or -PupdateRepo): a personal build must not be nudged towards
+     * someone else's releases, which are signed with a key this install doesn't have anyway.
+     */
+    val REPO: String = BuildConfig.UPDATE_REPO
 
-    private const val API = "https://api.github.com/repos/$REPO/releases/latest"
+    private val API get() = "https://api.github.com/repos/$REPO/releases/latest"
     private const val PREF = "updates"
     private const val KEY_LAST_CHECK = "lastCheckMs"
     private const val KEY_SKIPPED = "skippedVersion"

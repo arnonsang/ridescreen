@@ -559,6 +559,6 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
         /** Phone phases that mean "a connection is being made". */
         private val CONNECTING_PHASES = setOf("STARTING_AA", "AA_VIDEO_LIVE", "JOINING_WIFI", "PXC_CONNECTING", "RECONNECTING")
         private val COLOR_GREY = Color.parseColor("#9E9E9E")
-        private val COLOR_ACCENT = Color.parseColor("#FF5A1F")
+        private val COLOR_ACCENT = Color.parseColor("#D1A955")
     }
 }

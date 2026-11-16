@@ -26,12 +26,29 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Hero: the active bike's Garage photo, edge to edge. -->
+            <!-- Big headline that follows the connection state (see MainActivity.renderHeadline). -->
+            <TextView
+                android:id="@+id/home_headline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/barlow_condensed_xbold_italic"
+                android:includeFontPadding="false"
+                android:lineSpacingMultiplier="0.86"
+                android:text="@string/headline_ready"
+                android:textAllCaps="true"
+                android:textColor="@color/text_primary"
+                android:textSize="58sp" />
+
+            <!-- Hero: the active bike's Garage photo on a rounded accent panel. -->
             <FrameLayout
                 android:id="@+id/hero_card"
                 android:layout_width="match_parent"
-                android:layout_height="300dp"
-                android:background="@color/surface_high">
+                android:layout_height="200dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_hero_panel">
 
                 <ImageView
                     android:id="@+id/hero_placeholder"
@@ -121,10 +138,12 @@
                         android:id="@+id/hero_name"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/archivo_black"
+                        android:fontFamily="@font/barlow_condensed_xbold_italic"
+                        android:includeFontPadding="false"
                         android:maxLines="1"
-                        android:textColor="@color/brand_gold"
-                        android:textSize="46sp"
+                        android:textAllCaps="true"
+                        android:textColor="@color/white"
+                        android:textSize="44sp"
                         tools:text="125X" />
 
                     <TextView
@@ -142,8 +161,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingHorizontal="16dp"
-                android:paddingTop="6dp"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="10dp"
                 android:paddingBottom="16dp">
 
                 <!-- v2.2 home (proposal A): status + today's numbers in one card. -->
@@ -206,23 +225,20 @@
                         android:layout_marginTop="14dp"
                         android:visibility="gone" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="14dp"
-                        android:background="@color/surface_high" />
+                </LinearLayout>
 
-                    <LinearLayout
+                <!-- Today's numbers: one tile each. -->
+                <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:baselineAligned="false"
-                        android:gravity="bottom"
                         android:orientation="horizontal">
 
                         <!-- v2.3: live speed while projecting (replaces "km/h máx"). -->
                         <LinearLayout
                             android:id="@+id/stat_speed_box"
+                            android:layout_marginEnd="10dp" android:background="@drawable/bg_stat_tile" android:paddingHorizontal="12dp" android:paddingVertical="12dp"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1.3"
@@ -239,11 +255,11 @@
                                     android:id="@+id/stat_speed"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:fontFamily="@font/archivo_black"
+                                    android:fontFamily="@font/barlow_condensed_xbold_italic"
                                     android:includeFontPadding="false"
                                     android:text="--"
                                     android:textColor="@color/brand_gold"
-                                    android:textSize="44sp" />
+                                    android:textSize="40sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
@@ -260,8 +276,9 @@
                         </LinearLayout>
 
                         <LinearLayout
+                            android:layout_marginEnd="10dp" android:background="@drawable/bg_stat_tile" android:paddingHorizontal="12dp" android:paddingVertical="12dp"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
@@ -277,6 +294,7 @@
 
                         <LinearLayout
                             android:id="@+id/stat_max_box"
+                            android:layout_marginEnd="10dp" android:background="@drawable/bg_stat_tile" android:paddingHorizontal="12dp" android:paddingVertical="12dp"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -292,9 +310,9 @@
                                 android:text="@string/stat_max_today" />
                         </LinearLayout>
 
-                        <LinearLayout
+                        <LinearLayout android:background="@drawable/bg_stat_tile" android:paddingHorizontal="12dp" android:paddingVertical="12dp"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
@@ -309,7 +327,7 @@
                                 android:text="@string/stat_clock" />
                         </LinearLayout>
                     </LinearLayout>
-                </LinearLayout>
+                
 
                 <!-- v2.3: battery + lock card from the keyless box (read only); only once the PKE code is set. -->
                 <LinearLayout
@@ -803,6 +821,41 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="14dp"
+        android:layout_marginBottom="10dp"
         android:text="@string/main_connect" />
+
+    <!-- Bottom nav: the places you go most. -->
+    <LinearLayout
+        android:id="@+id/home_nav"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@drawable/bg_nav_bar"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/nav_home"
+            style="@style/HomeNavItem"
+            android:text="@string/nav_home"
+            android:drawableTop="@drawable/ic_nav_home" />
+        <TextView
+            android:id="@+id/nav_trips"
+            style="@style/HomeNavItem"
+            android:text="@string/nav_trips"
+            android:drawableTop="@drawable/ic_ride" />
+        <TextView
+            android:id="@+id/nav_screen"
+            style="@style/HomeNavItem"
+            android:text="@string/nav_screen"
+            android:drawableTop="@drawable/ic_tile_screen" />
+        <TextView
+            android:id="@+id/nav_garage"
+            style="@style/HomeNavItem"
+            android:text="@string/nav_garage"
+            android:drawableTop="@drawable/ic_devices" />
+        <TextView
+            android:id="@+id/nav_setup"
+            style="@style/HomeNavItem"
+            android:text="@string/nav_setup"
+            android:drawableTop="@drawable/ic_settings" />
+    </LinearLayout>
 </LinearLayout>

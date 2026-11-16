@@ -78,7 +78,7 @@ class ConnectWidget : AppWidgetProvider() {
         }
 
         private const val SIZE = 320
-        private const val GOLD = 0xFFFF5A1F.toInt()
+        private const val GOLD = 0xFFD1A955.toInt()
         private const val GREEN = 0xFF6FBF73.toInt()
 
         private fun draw(ctx: Context, st: St): Bitmap {

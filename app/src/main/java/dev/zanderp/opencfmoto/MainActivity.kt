@@ -902,6 +902,18 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_mirror_start).setOnClickListener { onMirrorPressed() }
         findViewById<View>(R.id.btn_gpx).setOnClickListener { onMapPressed() }
+        // Rounded hero, and the bottom nav: shortcuts to what the tiles and the "More" row open.
+        findViewById<View?>(R.id.hero_card)?.clipToOutline = true
+        findViewById<TextView?>(R.id.nav_home)?.let { home ->
+            val accent = ContextCompat.getColor(this, R.color.brand_orange)
+            home.setTextColor(accent)
+            home.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(accent)
+            home.setOnClickListener { findViewById<androidx.core.widget.NestedScrollView?>(R.id.main_scroll)?.smoothScrollTo(0, 0) }
+        }
+        findViewById<View?>(R.id.nav_trips)?.setOnClickListener { TripsListActivity.start(this) }
+        findViewById<View?>(R.id.nav_screen)?.setOnClickListener { RideScreenActivity.start(this) }
+        findViewById<View?>(R.id.nav_garage)?.setOnClickListener { GarageActivity.start(this) }
+        findViewById<View?>(R.id.nav_setup)?.setOnClickListener { SetupActivity.start(this) }
         (findViewById<View?>(R.id.btn_ride_screen) as? MaterialButton)?.apply {
             setIconResource(R.drawable.ic_tile_screen)
             setOnClickListener { RideScreenActivity.start(this@MainActivity) }
@@ -1445,17 +1457,43 @@ class MainActivity : AppCompatActivity() {
         val dp = resources.displayMetrics.density
         val bubble = android.widget.ImageView(this).apply {
             setImageResource(icon)
-            setColorFilter(color)
-            val pad = (10 * dp).toInt()
+            // Small tiles: a round button in ink; big (riding) tiles: the accent on a dark disc.
+            setColorFilter(ContextCompat.getColor(this@MainActivity, if (big) R.color.brand_orange else R.color.text_primary))
+            val pad = ((if (big) 10 else 16) * dp).toInt()
             setPadding(pad, pad, pad, pad)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = 12 * dp
-                setColor((color and 0x00FFFFFF) or 0x26000000)
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(ContextCompat.getColor(this@MainActivity, if (big) R.color.bg else R.color.surface))
+                if (!big) setStroke((1 * dp).toInt(), ContextCompat.getColor(this@MainActivity, R.color.outline))
             }
         }
-        val size = ((if (big) 42 else 44) * dp).toInt()
+        val size = ((if (big) 42 else 58) * dp).toInt()
+        if (big) {
+            // Icon on the left, title and detail stacked beside it.
+            box.orientation = android.widget.LinearLayout.HORIZONTAL
+            box.gravity = android.view.Gravity.CENTER_VERTICAL
+            box.addView(bubble, android.widget.LinearLayout.LayoutParams(size, size))
+            val textCol = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding((12 * dp).toInt(), 0, 0, 0)
+            }
+            val tt = TextView(this).apply {
+                text = title; textSize = 14f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                typeface = androidx.core.content.res.ResourcesCompat.getFont(this@MainActivity, R.font.archivo_semibold)
+            }
+            val ss = TextView(this).apply {
+                text = sub; textSize = 11f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                visibility = if (sub.isBlank()) View.GONE else View.VISIBLE
+            }
+            textCol.addView(tt); textCol.addView(ss)
+            box.addView(textCol, android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            tiles[id] = Tile(ss, tt)
+            return
+        }
+        box.orientation = android.widget.LinearLayout.VERTICAL
         box.addView(bubble, android.widget.LinearLayout.LayoutParams(size, size))
         val t = TextView(this).apply {
             text = title
@@ -1493,7 +1531,7 @@ class MainActivity : AppCompatActivity() {
         buildTile(R.id.btn_traffic_lights, R.drawable.ic_tile_lights, 0xFFE05A5A.toInt(), getString(R.string.home_tile_tl))
         buildTile(R.id.btn_live, R.drawable.ic_tile_live, 0xFF5FD07A.toInt(), getString(R.string.home_tile_live))
         buildTile(R.id.btn_help, R.drawable.ic_tile_help, 0xFFA98BE0.toInt(), getString(R.string.home_tile_help), getString(R.string.home_tile_help_sub))
-        buildTile(R.id.btn_park_photo, R.drawable.ic_tile_camera, 0xFFFF5A1F.toInt(), getString(R.string.home_big_park), getString(R.string.home_big_park_sub), big = true)
+        buildTile(R.id.btn_park_photo, R.drawable.ic_tile_camera, 0xFFD1A955.toInt(), getString(R.string.home_big_park), getString(R.string.home_big_park_sub), big = true)
         buildTile(R.id.btn_controls, R.drawable.ic_tile_dpad, 0xFF5B8DEF.toInt(), getString(R.string.controls_controls), getString(R.string.home_big_controls_sub), big = true)
         buildTile(R.id.btn_hud_view, R.drawable.ic_tile_screen, 0xFF4FB6A6.toInt(), getString(R.string.hud_dash_view), getString(R.string.home_big_hud_sub), big = true)
         buildTile(R.id.btn_trip, R.drawable.ic_tile_timer, 0xFF5FD07A.toInt(), getString(R.string.home_big_trip), getString(R.string.home_big_trip_sub), big = true)
@@ -1554,14 +1592,39 @@ class MainActivity : AppCompatActivity() {
      * Parked vs connected: the hero shrinks and the riding shortcuts (park with photo, controls, dash
      * view, current trip, destination search) appear; the parking card only shows when parked.
      */
+    /** The big headline says where things stand; its last line carries the accent colour. */
+    private fun renderHeadline(phase: Phase) {
+        val tv = findViewById<TextView?>(R.id.home_headline) ?: return
+        val text = getString(
+            when {
+                phase == Phase.STREAMING || phase == Phase.MIRRORING -> R.string.headline_live
+                phase == Phase.WAITING_FOR_BIKE -> R.string.headline_waiting
+                phase == Phase.ERROR -> R.string.headline_problem
+                phase.busy -> R.string.headline_linking
+                else -> R.string.headline_ready
+            },
+        )
+        val cut = text.lastIndexOf(' ').takeIf { it >= 0 } ?: text.lastIndexOf('\n')
+        val span = android.text.SpannableString(text)
+        if (cut >= 0) {
+            span.setSpan(
+                android.text.style.ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_orange)),
+                cut + 1, text.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        tv.text = span
+        tv.textSize = if (sessionAlive(phase)) 40f else 58f
+    }
+
     private fun renderHomeMode(phase: Phase) {
         val live = sessionAlive(phase)
         findViewById<View?>(R.id.live_section)?.visibility = if (live) View.VISIBLE else View.GONE
         findViewById<View?>(R.id.hero_card)?.let { hero ->
-            val h = ((if (live) 190 else 280) * resources.displayMetrics.density).toInt()
+            val h = ((if (live) 130 else 200) * resources.displayMetrics.density).toInt()
             if (hero.layoutParams.height != h) { hero.layoutParams.height = h; hero.requestLayout() }
         }
-        findViewById<TextView?>(R.id.hero_name)?.textSize = if (live) 34f else 46f
+        findViewById<TextView?>(R.id.hero_name)?.textSize = if (live) 32f else 44f
+        renderHeadline(phase)
         placeLiveShare(big = live)
         renderParked()
         renderPkeCard()
@@ -1585,7 +1648,8 @@ class MainActivity : AppCompatActivity() {
         val dp = resources.displayMetrics.density
         fun style(v: android.widget.LinearLayout, asBig: Boolean) {
             v.gravity = if (asBig) (android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START) else android.view.Gravity.CENTER
-            v.minimumHeight = ((if (asBig) 112 else 108) * dp).toInt()
+            v.minimumHeight = ((if (asBig) 72 else 96) * dp).toInt()
+            if (asBig) v.setBackgroundResource(R.drawable.bg_stat_tile) else v.background = null
             if (asBig) v.setPadding((16 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt())
             else v.setPadding((6 * dp).toInt(), (14 * dp).toInt(), (6 * dp).toInt(), (12 * dp).toInt())
         }

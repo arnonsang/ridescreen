@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- "Moto" look: carbon black surfaces, racing-orange accent, tighter corners (Archivo). Before: matte green + gold; before that: a dark "cockpit" theme with a CFMoto-orange accent. Dark is intentional: this runs on a
+    <!-- "Moto" look: carbon black, white and gold (from the white Zontes 368K), Barlow Condensed italic for headlines and numbers, Archivo for text. Before: matte green + gold; before that: a dark "cockpit" theme with a CFMoto-orange accent. Dark is intentional: this runs on a
          bike in daylight/handlebar context and mirrors a commercial head-unit look. -->
     <style name="Base.Theme.OpenCfMoto" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/brand_orange</item>
@@ -113,12 +113,13 @@
         <item name="android:letterSpacing">0.01</item>
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">end</item>
-        <item name="cornerRadius">16dp</item>
+        <item name="cornerRadius">30dp</item>
         <item name="android:minHeight">64dp</item>
-        <item name="android:letterSpacing">0.08</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="android:textSize">22sp</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:fontFamily">@font/archivo_black</item>
-        <item name="fontFamily">@font/archivo_black</item>
+        <item name="android:fontFamily">@font/barlow_condensed_xbold_italic</item>
+        <item name="fontFamily">@font/barlow_condensed_xbold_italic</item>
         <item name="iconGravity">textStart</item>
         <item name="iconPadding">@dimen/btn_icon_padding</item>
     </style>
@@ -196,13 +197,14 @@
     <style name="HeroStatValue">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:fontFamily">@font/archivo_black</item>
+        <item name="android:fontFamily">@font/barlow_condensed_xbold_italic</item>
         <item name="android:maxLines">1</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">25sp</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:includeFontPadding">false</item>
         <item name="autoSizeTextType">uniform</item>
         <item name="autoSizeMinTextSize">16sp</item>
-        <item name="autoSizeMaxTextSize">25sp</item>
+        <item name="autoSizeMaxTextSize">32sp</item>
     </style>
 
     <style name="HeroStatLabel">
@@ -251,21 +253,23 @@
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:minHeight">108dp</item>
+        <item name="android:minHeight">96dp</item>
         <item name="android:orientation">vertical</item>
         <item name="android:gravity">center</item>
         <item name="android:paddingTop">14dp</item>
         <item name="android:paddingBottom">12dp</item>
         <item name="android:paddingStart">6dp</item>
         <item name="android:paddingEnd">6dp</item>
-        <item name="android:background">@drawable/bg_stat_tile</item>
+        <item name="android:background">@android:color/transparent</item>
         <item name="android:foreground">?attr/selectableItemBackground</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
     </style>
 
     <style name="HomeTile.Big">
-        <item name="android:minHeight">112dp</item>
+        <item name="android:minHeight">72dp</item>
+        <item name="android:background">@drawable/bg_stat_tile</item>
+        <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center_vertical|start</item>
         <item name="android:paddingStart">16dp</item>
         <item name="android:paddingEnd">10dp</item>
@@ -288,5 +292,21 @@
         <item name="iconTint">@color/text_secondary</item>
         <item name="iconPadding">4dp</item>
         <item name="iconSize">22dp</item>
+    </style>
+    <!-- Bottom nav item: icon over a small label. Active colour is set in code. -->
+    <style name="HomeNavItem">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">9dp</item>
+        <item name="android:drawablePadding">2dp</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:drawableTint">@color/text_secondary</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
     </style>
 </resources>

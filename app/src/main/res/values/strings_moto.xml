@@ -30,4 +30,16 @@
     <string name="ride_on">On</string>
     <string name="ride_off">Off</string>
     <string name="ride_allow">Tap to allow (Notification access)</string>
+
+    <!-- Home headline and bottom nav. -->
+    <string name="headline_ready">Ready\nto ride.</string>
+    <string name="headline_linking">Linking\nup…</string>
+    <string name="headline_live">On the\ndash.</string>
+    <string name="headline_waiting">Waiting\nfor the bike.</string>
+    <string name="headline_problem">Not\nconnected.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_trips">Trips</string>
+    <string name="nav_screen">Screen</string>
+    <string name="nav_garage">Garage</string>
+    <string name="nav_setup">Setup</string>
 </resources>

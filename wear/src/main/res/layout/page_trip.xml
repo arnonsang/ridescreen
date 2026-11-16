@@ -122,7 +122,7 @@
         android:gravity="center"
         android:paddingHorizontal="12dp"
         android:paddingVertical="6dp"
-        android:textColor="#FF5A1F"
+        android:textColor="#D1A955"
         android:textSize="12sp"
         android:textStyle="bold"
         android:visibility="gone" />

@@ -3,13 +3,13 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- "Moto" palette: carbon black ground with a racing-orange accent, like a sport bike's TFT
-         dash. The accent keeps its old resource name (brand_orange) so every screen that tints
+    <!-- "Moto" palette: carbon black ground, white ink and a gold accent, taken from the white
+         Zontes 368K (gold wheels and stripe). The accent keeps its old resource name (brand_orange) so every screen that tints
          with it follows without touching code. -->
-    <color name="brand_orange">#FF5A1F</color>
-    <color name="brand_orange_dark">#C9400F</color>
+    <color name="brand_orange">#D1A955</color>
+    <color name="brand_orange_dark">#A9873E</color>
     <color name="on_brand">#0B0C0E</color>
-    <color name="brand_gold">#FF5A1F</color>
+    <color name="brand_gold">#D1A955</color>
 
     <!-- Carbon surfaces -->
     <color name="bg">#0B0C0E</color>

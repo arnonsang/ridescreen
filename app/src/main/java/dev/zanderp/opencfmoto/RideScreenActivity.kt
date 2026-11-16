@@ -31,6 +31,8 @@ class RideScreenActivity : AppCompatActivity() {
     private lateinit var modeAa: TextView
     private lateinit var modeRide: TextView
     private lateinit var go: MaterialButton
+    private lateinit var nowRow: TextView
+    private lateinit var autoRow: TextView
     private val presetViews = HashMap<RideScreen.Preset, TextView>()
     private val themeViews = HashMap<RideScreen.Theme, View>()
 
@@ -95,13 +97,17 @@ class RideScreenActivity : AppCompatActivity() {
         col.addView(seg, lp(top = 18))
 
         col.addView(head(getString(R.string.ride_layout)), lp(top = 20))
-        val presets = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        RideScreen.Preset.entries.forEachIndexed { i, p ->
-            val v = chip(p.label) { RideScreen.setPreset(this, p); render() }
-            presetViews[p] = v
-            presets.addView(v, LinearLayout.LayoutParams(0, px(56), 1f).apply { if (i > 0) marginStart = px(8) })
+        RideScreen.Preset.entries.chunked(4).forEachIndexed { rowIndex, rowPresets ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            rowPresets.forEachIndexed { i, p ->
+                val v = chip(p.label) { RideScreen.setPreset(this, p); render() }
+                presetViews[p] = v
+                row.addView(v, LinearLayout.LayoutParams(0, px(52), 1f).apply { if (i > 0) marginStart = px(8) })
+            }
+            // Keep a short last row aligned with the columns above.
+            repeat(4 - rowPresets.size) { row.addView(View(this), LinearLayout.LayoutParams(0, px(52), 1f).apply { marginStart = px(8) }) }
+            col.addView(row, lp(top = if (rowIndex == 0) 8 else 8))
         }
-        col.addView(presets, lp(top = 8))
 
         col.addView(head(getString(R.string.ride_theme)), lp(top = 20))
         val themes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -115,6 +121,17 @@ class RideScreenActivity : AppCompatActivity() {
             themes.addView(sw, LinearLayout.LayoutParams(px(48), px(48)).apply { if (i > 0) marginStart = px(12) })
         }
         col.addView(themes, lp(top = 8))
+
+        col.addView(head(getString(R.string.ride_options)), lp(top = 20))
+        nowRow = optionRow(getString(R.string.ride_now_playing)) {
+            if (RideFeeds.NowPlaying.hasAccess(this)) return@optionRow
+            try { startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } catch (_: Exception) {}
+        }
+        col.addView(nowRow, lp(top = 8))
+        autoRow = optionRow(getString(R.string.ride_auto_disconnect)) {
+            AppSettings.setAutoDisconnect(this, !AppSettings.autoDisconnect(this)); render()
+        }
+        col.addView(autoRow, lp(top = 8))
 
         col.addView(sub(getString(R.string.ride_keys)), lp(top = 20))
 
@@ -155,8 +172,20 @@ class RideScreenActivity : AppCompatActivity() {
     }
 
     private fun chip(label: String, onTap: () -> Unit) = TextView(this).apply {
-        text = label; textSize = 14f; gravity = Gravity.CENTER
+        text = label; textSize = 13f; gravity = Gravity.CENTER; maxLines = 1
         typeface = ResourcesCompat.getFont(this@RideScreenActivity, R.font.archivo_semibold)
+        isClickable = true; isFocusable = true
+        setOnClickListener { onTap() }
+    }
+
+    /** A tappable row: label on the left, its state ("On", "Off", "Allow…") on the right. */
+    private fun optionRow(label: String, onTap: () -> Unit) = TextView(this).apply {
+        text = label; textSize = 14f
+        setTextColor(color(R.color.text_primary))
+        gravity = Gravity.CENTER_VERTICAL
+        minHeight = px(52)
+        setPadding(px(16), px(8), px(16), px(8))
+        background = GradientDrawable().apply { cornerRadius = 16 * dp; setColor(color(R.color.surface)) }
         isClickable = true; isFocusable = true
         setOnClickListener { onTap() }
     }
@@ -200,6 +229,10 @@ class RideScreenActivity : AppCompatActivity() {
         preview.themeOverride = theme
         preview.alpha = if (ride) 1f else 0.45f
         go.text = getString(if (ride) R.string.ride_go_ride else R.string.ride_go_aa)
+        nowRow.text = getString(R.string.ride_now_playing) + "  ·  " +
+            getString(if (RideFeeds.NowPlaying.hasAccess(this)) R.string.ride_on else R.string.ride_allow)
+        autoRow.text = getString(R.string.ride_auto_disconnect) + "  ·  " +
+            getString(if (AppSettings.autoDisconnect(this)) R.string.ride_on else R.string.ride_off)
     }
 
     /**

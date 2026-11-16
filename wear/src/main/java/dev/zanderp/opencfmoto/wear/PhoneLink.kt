@@ -20,6 +20,7 @@ object PhoneLink {
     const val PATH_SUB = "/ocm/sub"
     const val PATH_KEY = "/ocm/key"
     const val PATH_SCROLL = "/ocm/scroll"
+    const val PATH_STOP = "/ocm/stop"
     const val PATH_STATS = "/ocm/stats"
     const val PATH_SESSION = "/ocm/session"
     const val PATH_TRIPS = "/ocm/trips"
@@ -252,6 +253,10 @@ data class RideStats(
     val clockResync: Boolean,
     val turn: JSONObject?,
     val husOff: Boolean,
+    /** Connection legs, sent by phone builds that know them (null = older phone app). */
+    val aaUp: Boolean? = null,
+    val wifiUp: Boolean? = null,
+    val rideScreen: Boolean = false,
 ) {
     companion object {
         fun parse(json: String): RideStats? = try {
@@ -280,6 +285,9 @@ data class RideStats(
                 clockResync = o.optBoolean("clk"),
                 turn = o.optJSONObject("turn"),
                 husOff = o.has("hus") && !o.optBoolean("hus", true),
+                aaUp = if (o.has("aa")) o.optBoolean("aa") else null,
+                wifiUp = if (o.has("wifi")) o.optBoolean("wifi") else null,
+                rideScreen = o.optBoolean("ride"),
             )
         } catch (_: Exception) {
             null

@@ -41,4 +41,11 @@
     <string name="tile_no_data">No rides yet</string>
     <string name="complication_label">RideScreen · km</string>
     <string name="complication_desc">ride km</string>
+    <!-- Connecting: which leg is still missing. -->
+    <string name="status_wait_aa">● Starting Android Auto…</string>
+    <string name="status_wait_wifi">● Joining bike Wi-Fi…</string>
+    <string name="status_wait_dash">● Linking to dash…</string>
+    <string name="status_error">● Connection problem</string>
+    <string name="stop_confirm">Stop projecting to the dash?</string>
+    <string name="stop_yes">Stop</string>
 </resources>

@@ -23,6 +23,11 @@ object RideScreen {
         CRUISE("cruise", "Cruise"),
         STREET("street", "Street"),
         HUB("hub", "Ride hub", mapWindow = true),
+        TOURER("tourer", "Tourer", mapWindow = true),
+        SPORT("sport", "Sport"),
+        MUSIC("music", "Music"),
+        RACE("race", "Race bar"),
+        TWIN("twin", "Twin dials"),
     }
 
     /** Colour sets. [light] themes use dark ink and softer shadows. */
@@ -97,6 +102,11 @@ object RideData {
     @Volatile var rangeKm: Int? = null
     @Volatile var nowTitle: String? = null
     @Volatile var nowArtist: String? = null
+    /** Playback position and length in ms, with the moment they were read; null when unknown. */
+    @Volatile var nowPosMs: Long? = null
+    @Volatile var nowDurMs: Long? = null
+    @Volatile var nowPlaying = false
+    @Volatile var nowReadAt = 0L
     @Volatile var phonePct: Int? = null
 
     /** Bumped whenever something changes, so the view only redraws when needed. */

@@ -271,6 +271,20 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
                 status.setText(R.string.status_streaming)
                 status.setTextColor(if (ambient) Color.WHITE else COLOR_GREEN)
             }
+            // Connecting: say which leg is still missing, like the phone's step bar.
+            s.phase in CONNECTING_PHASES && s.aaUp != null && s.wifiUp != null -> {
+                status.text = getString(
+                    when {
+                        s.rideScreen || s.aaUp == true -> if (s.wifiUp == true) R.string.status_wait_dash else R.string.status_wait_wifi
+                        else -> R.string.status_wait_aa
+                    },
+                )
+                status.setTextColor(if (ambient) Color.WHITE else COLOR_AMBER)
+            }
+            s.phase == "ERROR" -> {
+                status.setText(R.string.status_error)
+                status.setTextColor(if (ambient) Color.WHITE else COLOR_RED)
+            }
             s.session -> {
                 status.setText(R.string.status_reconnecting)
                 status.setTextColor(if (ambient) Color.WHITE else COLOR_AMBER)
@@ -389,6 +403,16 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
 
     private fun bindTrip(v: View) {
         tvStatus = v.findViewById(R.id.tv_status)
+        // Tap the status line while connected or connecting: offer Stop, so the phone can stay pocketed.
+        tvStatus?.setOnClickListener {
+            val s = stats ?: return@setOnClickListener
+            if (!s.session && s.phase !in CONNECTING_PHASES && s.phase != "STREAMING") return@setOnClickListener
+            android.app.AlertDialog.Builder(this)
+                .setMessage(R.string.stop_confirm)
+                .setPositiveButton(R.string.stop_yes) { _, _ -> PhoneLink.send(this, PhoneLink.PATH_STOP, "1") }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
         tvSpeed = v.findViewById(R.id.tv_speed)
         tvSpeedUnit = v.findViewById(R.id.tv_speed_unit)
         tvDist = v.findViewById(R.id.tv_dist)
@@ -531,6 +555,9 @@ class WearMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLis
         /** In ambient we only get a snapshot per minute, so data stays "fresh" longer. */
         private const val AMBIENT_STALE_MS = 90_000L
         private val COLOR_AMBER = Color.parseColor("#FFB300")
+        private val COLOR_RED = Color.parseColor("#FF6B5E")
+        /** Phone phases that mean "a connection is being made". */
+        private val CONNECTING_PHASES = setOf("STARTING_AA", "AA_VIDEO_LIVE", "JOINING_WIFI", "PXC_CONNECTING", "RECONNECTING")
         private val COLOR_GREY = Color.parseColor("#9E9E9E")
         private val COLOR_ACCENT = Color.parseColor("#FF5A1F")
     }

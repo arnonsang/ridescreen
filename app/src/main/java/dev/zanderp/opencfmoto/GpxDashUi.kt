@@ -2126,6 +2126,17 @@ class GpxDashUi(
                             log("[RIDE] theme → ${next.label}")
                         }
                         AaInput.KEY_HOME -> { ride.peekMap = true; log("[RIDE] peek at the map (Back returns)") }
+                        // No Android Auto here, so the voice button opens the phone's own assistant
+                        // (Gemini / Google Assistant); it talks through the helmet headset.
+                        AaInput.KEY_ASSISTANT -> try {
+                            context.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VOICE_COMMAND)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                            log("[RIDE] voice button → phone assistant")
+                        } catch (e: Exception) {
+                            log("[RIDE] could not open the phone assistant: ${e.javaClass.simpleName}")
+                        }
                         else -> log("[RIDE] unused key $code")
                     }
                     ride.syncNow()
@@ -2202,6 +2213,7 @@ class GpxDashUi(
             wSpeed.text = GpxNav.formatSpeed(speedKmh, units)
             // Feed the ride screens; the cue texts are read back once this pass has set them.
             RideData.onFix(loc, speedKmh)
+            if (projected && RideScreen.enabled(context)) RideFeeds.onFix(context, loc)
             main.post {
                 if (released || !isAlive()) return@post
                 val navigating = maneuverRow.visibility == View.VISIBLE

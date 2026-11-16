@@ -122,11 +122,14 @@ class RideScreenView @JvmOverloads constructor(
         val cue: String?, val cueDist: String?, val street: String?,
         val temp: String, val rain: String?, val volts: Float?, val range: Int?,
         val now: String?, val phone: Int?, val lat: Double?, val lon: Double?,
+        val title: String? = null, val artist: String? = null, val progress: Float? = null,
+        val arrival: String? = null, val remaining: String? = null,
     )
 
     private fun values(): V = if (demo) {
         V(demoSpeed, 42f, 214, 4, "9.2", "24", 71, 38, 60, "Turn right", "300 m", "Main road",
-            "31°", "Rain in about 40 min", 12.6f, 140, "Track title · Artist", 99, 13.9, 100.5)
+            "31°", "Rain in about 40 min", 12.6f, 140, "Track title · Artist", 99, 13.9, 100.5,
+            "Track title", "Artist", 0.42f, "19:05", "12 km")
     } else {
         val d = RideData
         V(
@@ -137,7 +140,17 @@ class RideScreenView @JvmOverloads constructor(
             d.batteryV ?: try { PkeBattery.last(context)?.volts } catch (_: Exception) { null }, d.rangeKm,
             listOfNotNull(d.nowTitle, d.nowArtist).joinToString(" · ").ifBlank { null },
             d.phonePct ?: phoneBattery(), d.lat, d.lon,
+            d.nowTitle, d.nowArtist, nowProgress(), d.arrival, d.remaining,
         )
+    }
+
+    /** 0..1 through the current track, advanced locally between readings while it plays. */
+    private fun nowProgress(): Float? {
+        val d = RideData
+        val pos = d.nowPosMs ?: return null
+        val dur = d.nowDurMs?.takeIf { it > 0 } ?: return null
+        val extra = if (d.nowPlaying && d.nowReadAt > 0) android.os.SystemClock.elapsedRealtime() - d.nowReadAt else 0L
+        return ((pos + extra).toFloat() / dur).coerceIn(0f, 1f)
     }
 
     private fun phoneBattery(): Int? = try {
@@ -386,19 +399,201 @@ class RideScreenView @JvmOverloads constructor(
 
     /** Map window of the hub preset, in design coordinates. */
     private val hubHole = RectF(302f, 60f, 760f, 359f)
+    private val tourerHole = RectF(424f, 20f, 1000f, 281f)
+
+    private fun holeFor(p: RideScreen.Preset): RectF? = when (p) {
+        RideScreen.Preset.HUB -> hubHole
+        RideScreen.Preset.TOURER -> tourerHole
+        else -> null
+    }
+
+    /** Stand-in for the live map in a preview, and the frame around the real one. */
+    private fun mapWindowChrome(c: Canvas, hole: RectF) {
+        if (demo) {
+            fill.shader = null; fill.color = 0xFFDCE6EC.toInt(); c.drawRoundRect(hole, 18f, 18f, fill)
+            val save = c.save(); c.clipRect(hole)
+            stroke.shader = null; stroke.strokeWidth = 16f; stroke.color = 0xFFE0527A.toInt()
+            val cx = hole.centerX(); val cy = hole.centerY()
+            path.reset(); path.moveTo(cx + 110f, hole.top); path.cubicTo(cx + 100f, cy - 70f, cx + 30f, cy - 30f, cx, cy)
+            path.cubicTo(cx - 30f, cy + 40f, cx - 60f, cy + 110f, cx - 70f, hole.bottom)
+            c.drawPath(path, stroke)
+            c.restoreToCount(save)
+            fill.color = t.accent; c.drawCircle(cx, cy, 20f, fill)
+        }
+        stroke.shader = null; stroke.strokeWidth = 3f; stroke.color = t.line
+        c.drawRoundRect(hole, 6f, 6f, stroke)
+    }
+
+    /** Turn arrow from the cue's wording: left, right, or straight on. */
+    private fun turnArrow(c: Canvas, x: Float, y: Float, size: Float, cue: String?, color: Int) {
+        val s = cue?.lowercase(Locale.US).orEmpty()
+        val dir = when { "left" in s -> -1; "right" in s -> 1; else -> 0 }
+        stroke.shader = null; stroke.color = color; stroke.strokeWidth = size * 0.11f
+        stroke.strokeCap = Paint.Cap.ROUND; stroke.strokeJoin = Paint.Join.ROUND
+        path.reset()
+        if (dir == 0) {
+            path.moveTo(x + size / 2, y + size); path.lineTo(x + size / 2, y + size * 0.1f)
+            path.moveTo(x + size * 0.25f, y + size * 0.35f); path.lineTo(x + size / 2, y + size * 0.1f); path.lineTo(x + size * 0.75f, y + size * 0.35f)
+        } else {
+            val a = if (dir > 0) x + size * 0.2f else x + size * 0.8f
+            val b = if (dir > 0) x + size * 0.85f else x + size * 0.15f
+            path.moveTo(a, y + size); path.lineTo(a, y + size * 0.45f)
+            path.quadTo(a, y + size * 0.3f, a + dir * size * 0.15f, y + size * 0.3f); path.lineTo(b, y + size * 0.3f)
+            path.moveTo(b - dir * size * 0.2f, y + size * 0.1f); path.lineTo(b, y + size * 0.3f); path.lineTo(b - dir * size * 0.2f, y + size * 0.5f)
+        }
+        c.drawPath(path, stroke)
+        stroke.strokeCap = Paint.Cap.BUTT; stroke.strokeJoin = Paint.Join.MITER
+    }
+
+    private fun noteIcon(c: Canvas, x: Float, y: Float, size: Float, color: Int) {
+        stroke.shader = null; stroke.color = color; stroke.strokeWidth = size * 0.08f
+        stroke.strokeCap = Paint.Cap.ROUND; stroke.strokeJoin = Paint.Join.ROUND
+        path.reset()
+        path.moveTo(x + size * 0.36f, y + size * 0.74f); path.lineTo(x + size * 0.36f, y + size * 0.2f)
+        path.lineTo(x + size * 0.84f, y + size * 0.1f); path.lineTo(x + size * 0.84f, y + size * 0.66f)
+        c.drawPath(path, stroke)
+        c.drawCircle(x + size * 0.24f, y + size * 0.76f, size * 0.12f, stroke)
+        c.drawCircle(x + size * 0.72f, y + size * 0.68f, size * 0.12f, stroke)
+        stroke.strokeCap = Paint.Cap.BUTT; stroke.strokeJoin = Paint.Join.MITER
+    }
+
+    private fun volts(v: V) = v.volts?.let { String.format(Locale.US, "%.1f V", it) } ?: "—"
+
+    private fun statTile(c: Canvas, l: Float, tp: Float, r: Float, b: Float, value: String, sub: String, color: Int, size: Float = 62f) {
+        card(c, l, tp, r, b, 22f)
+        val mid = (tp + b) / 2
+        numText(c, value, l + 20f, mid + size * 0.2f, size, color)
+        label(c, sub, l + 20f, mid + size * 0.2f + 26f, 16f, t.mute, maxW = r - l - 40f)
+    }
+
+    private fun drawTourer(c: Canvas, v: V) {
+        background(c, clipOut = if (demo) null else tourerHole)
+        mapWindowChrome(c, tourerHole)
+        accentPanel(c, 24f, 20f, 404f, 405f, 26f)
+        if (v.cue != null) {
+            turnArrow(c, 48f, 44f, 110f, v.cue, t.onAccent)
+            numText(c, (v.cueDist ?: "").uppercase(Locale.US), 48f, 300f, 104f, t.onAccent)
+            label(c, v.cue, 48f, 344f, 24f, t.onAccent, maxW = 330f)
+            label(c, v.street ?: "", 48f, 376f, 17f, t.onAccent, maxW = 330f)
+        } else {
+            numText(c, RideData.headingLabel(v.heading), 48f, 230f, 150f, t.onAccent)
+            label(c, "No route set", 48f, 300f, 24f, t.onAccent)
+            label(c, "Search a place in the map menu", 48f, 334f, 17f, t.onAccent, maxW = 330f)
+        }
+        val w = (1000f - 424f - 24f) / 3
+        statTile(c, 424f, 293f, 424f + w, 405f, v.speed.toString(), "km/h" + (v.limit?.let { " · limit $it" } ?: ""), t.ink, 60f)
+        statTile(c, 436f + w, 293f, 436f + 2 * w, 405f, v.arrival ?: clock(), if (v.arrival != null) "Arrival" else "Clock", t.accent2, 60f)
+        statTile(c, 448f + 2 * w, 293f, 1000f, 405f, (v.remaining ?: "${v.tripKm} km").uppercase(Locale.US), if (v.remaining != null) "To go" else "Trip", t.ink, 60f)
+    }
+
+    private fun drawSport(c: Canvas, v: V) {
+        background(c)
+        // Speed bar: 24 slanted cells, lit up to the current speed, the last few in red.
+        val n = 24; val gap = 6f; val l = 28f; val r = 996f
+        val cw = (r - l - gap * (n - 1)) / n
+        val lit = (v.speed / MAX_SPEED * n).toInt()
+        fill.shader = null
+        for (i in 0 until n) {
+            val h = 10f + i * 0.7f
+            val x = l + i * (cw + gap)
+            fill.color = when { i >= lit -> t.line; i > 20 -> 0xFFFF6B5E.toInt(); else -> t.accent }
+            path.reset()
+            path.moveTo(x + 6f, 46f - h); path.lineTo(x + cw + 6f, 46f - h); path.lineTo(x + cw, 46f); path.lineTo(x, 46f); path.close()
+            c.drawPath(path, fill)
+        }
+        statTile(c, 28f, 96f, 278f, 214f, "${v.tripMin} MIN", "Riding time", t.ink, 58f)
+        statTile(c, 28f, 228f, 278f, 346f, v.avg.toString(), "Average km/h", t.accent, 58f)
+        statTile(c, 776f, 96f, 996f, 214f, v.max.toString(), "Max today", t.accent2, 58f)
+        statTile(c, 776f, 228f, 996f, 346f, v.alt?.let { "$it M" } ?: "—", "Altitude", t.ink, 58f)
+        val big = if (v.speed >= 100) 250f else 310f
+        numText(c, v.speed.toString(), 512f, 330f, big, t.ink, Paint.Align.CENTER, glow = true)
+        numText(c, "KM/H", 512f, 384f, 40f, t.accent, Paint.Align.CENTER)
+        limitSign(c, 60f, 382f, 22f, v.limit)
+        label(c, "${v.tripKm} km · ${clock()}", 996f, 390f, 18f, t.mute, Paint.Align.RIGHT)
+    }
+
+    private fun drawMusic(c: Canvas, v: V) {
+        background(c)
+        accentPanel(c, 28f, 24f, 405f, 401f, 28f)
+        noteIcon(c, 136f, 120f, 160f, t.onAccent)
+        val x = 430f
+        label(c, if (v.title != null) "Now playing" else "Nothing playing", x, 46f, 18f, t.mute)
+        numText(c, v.speed.toString(), 930f, 78f, 78f, t.ink, Paint.Align.RIGHT)
+        numText(c, "KM/H", 996f, 78f, 26f, t.accent, Paint.Align.RIGHT)
+        text.typeface = num; text.textSize = 84f
+        var title = (v.title ?: "—").uppercase(Locale.US)
+        while (title.length > 1 && text.measureText(title) > 560f) title = title.dropLast(1)
+        numText(c, title, x, 210f, 84f, t.ink)
+        label(c, v.artist ?: "Start music on your phone", x, 250f, 26f, t.accent2, maxW = 560f)
+        bar(c, x, 286f, 996f, v.progress ?: 0f, t.accent2, 8f)
+        label(c, "Skip tracks with the handlebar media buttons", x, 384f, 17f, t.mute, maxW = 560f)
+        label(c, clock(), 996f, 384f, 20f, t.ink, Paint.Align.RIGHT)
+    }
+
+    private fun drawRace(c: Canvas, v: V) {
+        background(c)
+        label(c, v.range?.let { "Range ~$it km" } ?: "${v.tripKm} km today", 28f, 38f, 17f, t.mute)
+        numText(c, "RACE BAR", 512f, 42f, 24f, t.accent, Paint.Align.CENTER)
+        label(c, listOf(volts(v), v.temp).filter { it != "—" }.joinToString(" · "), 996f, 38f, 17f, t.mute, Paint.Align.RIGHT)
+        val hs = floatArrayOf(34f, 50f, 64f, 76f, 86f, 94f, 100f, 104f, 108f, 110f, 112f, 114f, 116f, 117f, 118f, 119f)
+        val l = 42f; val r = 950f; val gap = 6f; val base = 176f
+        val cw = (r - l - gap * (hs.size - 1)) / hs.size
+        fill.shader = null
+        hs.forEachIndexed { i, h ->
+            val segStart = i * 10; val on = v.speed >= segStart + 10; val half = !on && v.speed > segStart
+            val red = i >= 13
+            val col = if (red) 0xFFFF6B5E.toInt() else t.accent
+            val x = l + i * (cw + gap)
+            path.reset()
+            path.moveTo(x + h * 0.28f, base - h); path.lineTo(x + cw + h * 0.28f, base - h); path.lineTo(x + cw, base); path.lineTo(x, base); path.close()
+            if (on) { fill.color = alpha(col, 70); c.save(); c.translate(0f, 4f); c.drawPath(path, fill); c.restore() }
+            fill.color = when { on -> col; half -> alpha(col, 140); red -> alpha(col, 90); else -> t.line }
+            c.drawPath(path, fill)
+        }
+        for (s in 0..160 step 20) {
+            val x = l + (r - l) * s / 160f
+            numText(c, s.toString(), x, 204f, 22f, if (s >= 140) 0xFFFF6B5E.toInt() else t.mute, Paint.Align.CENTER)
+        }
+        numText(c, "${v.tripKm} KM", 28f, 322f, 64f, t.ink)
+        label(c, "Trip · ${v.tripMin} min · max ${v.max}", 28f, 352f, 17f, t.mute)
+        val big = if (v.speed >= 100) 170f else 210f
+        numText(c, v.speed.toString(), 512f, 390f, big, t.ink, Paint.Align.CENTER, glow = true)
+        text.typeface = num; text.textSize = big
+        numText(c, "KM/H", 512f + text.measureText(v.speed.toString()) / 2 + 12f, 390f, 34f, t.accent)
+        limitSign(c, 774f, 320f, 32f, v.limit)
+        accentPanel(c, 822f, 278f, 906f, 362f, 16f)
+        numText(c, RideData.headingLabel(v.heading), 864f, 338f, 48f, t.onAccent, Paint.Align.CENTER)
+        numText(c, clock(), 996f, 392f, 44f, t.ink, Paint.Align.RIGHT)
+    }
+
+    private fun drawTwin(c: Canvas, v: V) {
+        background(c)
+        val cx = 199f; val cy = 220f; val r = 150f
+        speedArc(c, cx, cy, r, v.speed, 22f)
+        val (nx, ny) = pol(cx, cy, r - 23f, 135f + 270f * v.speed.coerceIn(0, MAX_SPEED.toInt()) / MAX_SPEED)
+        val (bx, by) = pol(cx, cy, -22f, 135f + 270f * v.speed.coerceIn(0, MAX_SPEED.toInt()) / MAX_SPEED)
+        stroke.shader = null; stroke.strokeWidth = 7f; stroke.strokeCap = Paint.Cap.ROUND; stroke.color = t.accent2
+        c.drawLine(bx, by, nx, ny, stroke); stroke.strokeCap = Paint.Cap.BUTT
+        fill.shader = null; fill.color = t.ink; c.drawCircle(cx, cy, 16f, fill)
+        fill.color = t.bg; c.drawCircle(cx, cy, 7f, fill)
+        numText(c, v.speed.toString(), cx, cy + 164f, 62f, t.ink, Paint.Align.CENTER)
+        numText(c, "KM/H", cx, cy + 186f, 18f, t.accent, Paint.Align.CENTER)
+
+        compass(c, 834f, 212f, 150f, v.heading)
+        label(c, v.alt?.let { "$it m altitude" } ?: "", 834f, 398f, 16f, t.mute, Paint.Align.CENTER)
+
+        val l = 384f; val rr = 656f
+        numText(c, clock(), l, 84f, 78f, t.ink)
+        limitSign(c, rr - 28f, 58f, 27f, v.limit)
+        barCard(c, l, 104f, rr, 196f, "Fuel range", v.range?.let { "$it KM" } ?: "—", v.range?.let { it / 260f }, t.accent)
+        barCard(c, l, 208f, rr, 300f, "Bike battery", volts(v), v.volts?.let { (it - 11f) / 3.5f }, 0xFF5BD47A.toInt())
+        accentPanel(c, l, 314f, rr, 392f, 18f)
+        label(c, v.now ?: "${v.tripKm} km · ${v.tripMin} min", l + 18f, 360f, 18f, t.onAccent, maxW = rr - l - 36f)
+    }
 
     private fun drawHub(c: Canvas, v: V) {
         background(c, clipOut = if (demo) null else hubHole)
-        if (demo) {
-            // No map under a preview: stand-in so the layout still reads.
-            fill.shader = null; fill.color = 0xFFDCE6EC.toInt(); c.drawRoundRect(hubHole, 18f, 18f, fill)
-            stroke.shader = null; stroke.strokeWidth = 16f; stroke.color = 0xFFE0527A.toInt()
-            path.reset(); path.moveTo(640f, 60f); path.cubicTo(630f, 140f, 560f, 180f, 531f, 210f); path.cubicTo(500f, 250f, 470f, 320f, 462f, 359f)
-            c.drawPath(path, stroke)
-            fill.color = t.accent; c.drawCircle(531f, 210f, 20f, fill)
-        }
-        stroke.shader = null; stroke.strokeWidth = 3f; stroke.color = t.line
-        c.drawRoundRect(hubHole, 6f, 6f, stroke)
+        mapWindowChrome(c, hubHole)
 
         accentPanel(c, 20f, 18f, 50f, 48f, 8f)
         numText(c, "R", 35f, 42f, 24f, t.onAccent, Paint.Align.CENTER)
@@ -486,6 +681,11 @@ class RideScreenView @JvmOverloads constructor(
             RideScreen.Preset.CRUISE -> drawCruise(canvas, v)
             RideScreen.Preset.STREET -> drawStreet(canvas, v)
             RideScreen.Preset.HUB -> drawHub(canvas, v)
+            RideScreen.Preset.TOURER -> drawTourer(canvas, v)
+            RideScreen.Preset.SPORT -> drawSport(canvas, v)
+            RideScreen.Preset.MUSIC -> drawMusic(canvas, v)
+            RideScreen.Preset.RACE -> drawRace(canvas, v)
+            RideScreen.Preset.TWIN -> drawTwin(canvas, v)
         }
         canvas.restoreToCount(save)
     }
@@ -493,10 +693,11 @@ class RideScreenView @JvmOverloads constructor(
     /** Where the live map shows through for the current preset, in view pixels; null = fully covered. */
     fun mapWindow(): RectF? {
         val preset = presetOverride ?: RideScreen.preset(context)
-        if (!preset.mapWindow || width == 0 || height == 0) return null
+        val hole = holeFor(preset)
+        if (hole == null || width == 0 || height == 0) return null
         val s = min(width / DW, height / DH)
         val ox = (width - DW * s) / 2f; val oy = (height - DH * s) / 2f
-        return RectF(ox + hubHole.left * s, oy + hubHole.top * s, ox + hubHole.right * s, oy + hubHole.bottom * s)
+        return RectF(ox + hole.left * s, oy + hole.top * s, ox + hole.right * s, oy + hole.bottom * s)
     }
 
     /** Redraw now if the data or the chosen preset/theme changed (called on every GPS fix). */

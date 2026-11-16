@@ -219,6 +219,16 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/ocm/" />
             </intent-filter>
         </service>
+        <!-- Lets the app read what the phone is playing for the ride screens; reads no notifications. -->
+        <service
+            android:name=".NowPlayingListener"
+            android:exported="true"
+            android:label="@string/ride_now_playing_service"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <service
             android:name=".TripVideoService"
             android:exported="false"

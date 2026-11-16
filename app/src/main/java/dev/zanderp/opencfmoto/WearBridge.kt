@@ -39,6 +39,8 @@ object WearBridge {
     const val PATH_SUB = "/ocm/sub"
     const val PATH_KEY = "/ocm/key"
     const val PATH_SCROLL = "/ocm/scroll"
+    /** Watch → phone: stop the projection (same teardown as the phone's Stop button). */
+    const val PATH_STOP = "/ocm/stop"
     const val PATH_STATS = "/ocm/stats"
     const val PATH_SESSION = "/ocm/session"
     const val PATH_TURN = "/ocm/turn"
@@ -141,6 +143,10 @@ object WearBridge {
             }
             PATH_KEY -> text.toIntOrNull()?.let { code -> main.post { sendKey(code) } }
             PATH_SCROLL -> text.toIntOrNull()?.let { d -> main.post { sendScroll(d) } }
+            PATH_STOP -> main.post {
+                LogBus.log("[WEAR] Stop from the watch")
+                try { RideStop.stopAll(ctx.applicationContext, reason = "stopped from the watch") } catch (_: Exception) {}
+            }
             WearTrips.PATH_TRIPS -> WearTrips.sendList(ctx.applicationContext, event.sourceNodeId, text)
             WearTrips.PATH_TRIPMAP -> WearTrips.sendMap(ctx.applicationContext, text, event.sourceNodeId)
         }
@@ -186,6 +192,10 @@ object WearBridge {
         val s = TripLogger.current?.snapshot()
         val o = JSONObject()
         o.put("phase", ConnectionState.phase.name)
+        // Which legs of the connection are up, for the watch's step line.
+        o.put("aa", AaVideoBridge.aaSessionLive || AaVideoBridge.aaDecoding)
+        o.put("wifi", ConnectionState.phase == Phase.STREAMING || BikeWifi.currentNetwork != null || BikeWifiP2p.isConnected)
+        o.put("ride", GpxSession.active && RideScreen.enabled(ctx))
         o.put("session", sessionActive)
         o.put("rec", s?.recording == true)
         o.put("fix", s?.hasFix == true)

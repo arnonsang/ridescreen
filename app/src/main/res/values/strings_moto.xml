@@ -23,4 +23,11 @@
     <string name="ride_keys">On the handlebar: left and right change the layout, Select changes the colour theme, Home shows the full map and Back returns.</string>
     <string name="ride_go_ride">Show ride screen on the dash</string>
     <string name="ride_go_aa">Connect Android Auto</string>
+    <string name="ride_options">Options</string>
+    <string name="ride_now_playing">Show what is playing</string>
+    <string name="ride_now_playing_service">RideScreen: now playing on the dash</string>
+    <string name="ride_auto_disconnect">Disconnect when the bike switches off</string>
+    <string name="ride_on">On</string>
+    <string name="ride_off">Off</string>
+    <string name="ride_allow">Tap to allow (Notification access)</string>
 </resources>

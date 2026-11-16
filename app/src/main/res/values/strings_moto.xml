@@ -10,4 +10,17 @@
     <string name="aa_stuck_title">Android Auto still says \"Connecting…\"</string>
     <string name="aa_stuck_body">RideScreen now tells Android Auto when a session ends, so this should no longer happen after Stop or when the bike switches off.\n\nIf Android Auto is already stuck, only a force stop clears it: tap the button below, then \"Force stop\". Start its head unit server again before the next ride.</string>
     <string name="aa_stuck_open">Stop RideScreen and open Android Auto</string>
+
+    <!-- Ride screen: the app's own dash layouts. -->
+    <string name="ride_entry">Dash screen</string>
+    <string name="ride_title">Dash screen</string>
+    <string name="ride_intro">Choose what your bike shows: Android Auto, or one of RideScreen\'s own instrument screens.</string>
+    <string name="ride_preview_note">Preview with sample values. On the bike it shows your real speed, trip and map.</string>
+    <string name="ride_mode_aa" translatable="false">Android Auto</string>
+    <string name="ride_mode_ride">Ride screen</string>
+    <string name="ride_layout">Layout</string>
+    <string name="ride_theme">Colour theme</string>
+    <string name="ride_keys">On the handlebar: left and right change the layout, Select changes the colour theme, Home shows the full map and Back returns.</string>
+    <string name="ride_go_ride">Show ride screen on the dash</string>
+    <string name="ride_go_aa">Connect Android Auto</string>
 </resources>

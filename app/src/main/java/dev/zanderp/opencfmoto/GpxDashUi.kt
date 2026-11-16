@@ -131,6 +131,24 @@ class GpxDashUi(
         }
         ViewCompat.requestApplyInsets(root)
         val mapHost = root.findViewById<FrameLayout>(R.id.gpx_map_host)
+        // Ride screen: instrument layouts over the map, only on the bike (not the phone preview).
+        val rideView = root.findViewById<RideScreenView?>(R.id.ride_screen)
+        if (rideView != null && projected) {
+            rideView.onMapWindow = { w ->
+                // Presets with a map window: shrink the map into it so the rider stays centred there.
+                val lp = mapHost.layoutParams as FrameLayout.LayoutParams
+                val (l, t, r, b) = if (w == null) listOf(0, 0, 0, 0) else listOf(
+                    w.left.toInt(), w.top.toInt(), (root.width - w.right).toInt(), (root.height - w.bottom).toInt(),
+                )
+                if (lp.leftMargin != l || lp.topMargin != t || lp.rightMargin != r || lp.bottomMargin != b) {
+                    lp.setMargins(l, t, r, b)
+                    mapHost.layoutParams = lp
+                }
+            }
+            rideView.followPrefs = true
+            rideView.syncNow()
+            log("[RIDE] ride screen ${if (RideScreen.enabled(context)) "on (${RideScreen.preset(context).label}, ${RideScreen.theme(context).label})" else "off"}")
+        }
         val dashLocal = DashMapEngine(context, mapHost).also { dash = it }
         dashLocal.setBuildings3d(buildings3d)
         dashLocal.onCreate(null)
@@ -2094,6 +2112,34 @@ class GpxDashUi(
             }
             fun handleMapKey(code: Int) {
                 if (released || !isAlive()) return
+                // Ride screen showing: the buttons drive it, not the map hidden underneath.
+                //   ←/→ next layout · Select next colour theme · Home peek at the full map.
+                val ride = rideView?.takeIf { it.followPrefs && RideScreen.enabled(context) }
+                if (ride != null && !ride.peekMap) {
+                    when (code) {
+                        AaInput.KEY_LEFT, AaInput.KEY_UP -> log("[RIDE] layout → ${RideScreen.cyclePreset(context, -1).label}")
+                        AaInput.KEY_RIGHT, AaInput.KEY_DOWN -> log("[RIDE] layout → ${RideScreen.cyclePreset(context, +1).label}")
+                        AaInput.KEY_ENTER -> {
+                            val all = RideScreen.Theme.entries
+                            val next = all[(RideScreen.theme(context).ordinal + 1) % all.size]
+                            RideScreen.setTheme(context, next)
+                            log("[RIDE] theme → ${next.label}")
+                        }
+                        AaInput.KEY_HOME -> { ride.peekMap = true; log("[RIDE] peek at the map (Back returns)") }
+                        else -> log("[RIDE] unused key $code")
+                    }
+                    ride.syncNow()
+                    return
+                }
+                if (ride != null && code == AaInput.KEY_BACK &&
+                    arriveCard.visibility != View.VISIBLE && previewCard.visibility != View.VISIBLE &&
+                    searchPanel.visibility != View.VISIBLE && menuPanel.visibility != View.VISIBLE
+                ) {
+                    ride.peekMap = false
+                    ride.syncNow()
+                    log("[RIDE] back to the ride screen")
+                    return
+                }
                 when (code) {
                     AaInput.KEY_ENTER -> {
                         ensureFocus()
@@ -2121,7 +2167,13 @@ class GpxDashUi(
             MapInputBridge.scrollSink = { delta ->
                 main.post {
                     if (released || !isAlive()) return@post
-                    moveFocus(delta)
+                    val ride = rideView?.takeIf { it.followPrefs && RideScreen.enabled(context) && !it.peekMap }
+                    if (ride != null) {
+                        RideScreen.cyclePreset(context, if (delta >= 0) +1 else -1)
+                        ride.syncNow()
+                    } else {
+                        moveFocus(delta)
+                    }
                 }
             }
             MapInputBridge.keySink = { code ->
@@ -2148,6 +2200,19 @@ class GpxDashUi(
 
         fun applyProgress(prog: GpxNav.Progress?, speedKmh: Float, loc: Location) {
             wSpeed.text = GpxNav.formatSpeed(speedKmh, units)
+            // Feed the ride screens; the cue texts are read back once this pass has set them.
+            RideData.onFix(loc, speedKmh)
+            main.post {
+                if (released || !isAlive()) return@post
+                val navigating = maneuverRow.visibility == View.VISIBLE
+                RideData.setCue(
+                    cueView.text?.toString()?.takeIf { navigating && it.isNotBlank() },
+                    cueDist.text?.toString()?.takeIf { navigating && it.isNotBlank() },
+                    wEta.text?.toString()?.takeIf { navigating && it.isNotBlank() },
+                    wLeft.text?.toString()?.takeIf { navigating && it.isNotBlank() },
+                )
+                rideView?.refresh()
+            }
             val nav = liveNav
             val dest = liveDest
             if (prog != null && nav != null) {
@@ -2329,6 +2394,7 @@ class GpxDashUi(
                             if (!isAlive() || released) return@post
                             val label = OverpassClient.formatLimit(lim, units)
                             wLimit.text = label
+                            RideData.limitKmh = label.filter { it.isDigit() }.toIntOrNull()
                             // EU-style round sign: just the number (no yellow "LIMIT" text).
                             if (label.isNotBlank() && label != "—") {
                                 chipLimit.visibility = View.VISIBLE

@@ -902,6 +902,10 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_mirror_start).setOnClickListener { onMirrorPressed() }
         findViewById<View>(R.id.btn_gpx).setOnClickListener { onMapPressed() }
+        (findViewById<View?>(R.id.btn_ride_screen) as? MaterialButton)?.apply {
+            setIconResource(R.drawable.ic_tile_screen)
+            setOnClickListener { RideScreenActivity.start(this@MainActivity) }
+        }
         findViewById<Button>(R.id.btn_aa_stop).setOnClickListener { stopEverything() }
 
         toggleLogBtn.setOnClickListener {

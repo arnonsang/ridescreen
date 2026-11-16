@@ -1069,4 +1069,11 @@
                     android:minHeight="48dp"/>
         </LinearLayout>
     </ScrollView>
+
+    <!-- Ride screen: the app's own instrument layouts, drawn over the map (see RideScreenView). -->
+    <dev.zanderp.opencfmoto.RideScreenView
+        android:id="@+id/ride_screen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 </FrameLayout>

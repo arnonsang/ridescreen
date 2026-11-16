@@ -232,6 +232,10 @@ class MainActivity : AppCompatActivity() {
             // AA 16.4+/17.4+ often need the broadcast fallbacks; retry once if video never arrives
             // (common when the first WirelessStartupReceiver is ignored).
             logView.postDelayed({
+                // Stop tapped in the meantime: the receiver is gone, a poke now would leave
+                // Android Auto "connecting" to nothing.
+                val p = ConnectionState.phase
+                if (p == Phase.STOPPED || p == Phase.IDLE || p == Phase.ERROR) return@postDelayed
                 try {
                     dev.zanderp.opencfmoto.aa.AaSelfMode.trigger(this, log = ::log)
                 } catch (e: Exception) {

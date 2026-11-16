@@ -644,6 +644,11 @@ class AndroidAutoService : Service() {
      */
     private fun onAaSessionEnded(userExit: Boolean) {
         if (!userExit) {
+            // Nothing to bring back when the receiver is gone, AA is parked or the rider stopped.
+            if (!canRelaunchAa()) {
+                LogBus.log("[AA] session ended while stopping/parked — not relaunching Android Auto")
+                return
+            }
             LogBus.log("[AA] session dropped — receiver still listening for reconnect")
             if (BikeLink.takeAaDropRetry()) {
                 LogBus.log("[AA] re-triggering self-mode after handshake drop")
@@ -658,18 +663,33 @@ class AndroidAutoService : Service() {
             if (n > 0) {
                 LogBus.log("[AA] Android Auto dropped while the dash is linked — bringing it back (try $n/3)")
                 watchdogHandler.postDelayed({
-                    if (ConnectionState.phase == Phase.STOPPED) return@postDelayed
+                    if (!canRelaunchAa()) return@postDelayed
                     try {
                         dev.zanderp.opencfmoto.aa.AaSelfMode.trigger(this, log = LogBus::log)
                     } catch (e: Exception) {
                         LogBus.log("[AA] live re-trigger failed: $e")
                     }
                 }, 1500L * n)
+            } else if (ConnectionState.phase == Phase.STREAMING) {
+                // Out of retries: say so instead of showing "Connected" over a frozen dash.
+                watchdogHandler.postDelayed({
+                    if (!canRelaunchAa() || ConnectionState.phase != Phase.STREAMING) return@postDelayed
+                    if (AaVideoBridge.aaSessionLive || AaVideoBridge.aaDecoding) return@postDelayed
+                    LogBus.log("[AA] Android Auto did not come back — reporting it")
+                    ConnectionState.set(Phase.ERROR, getString(R.string.conn_detail_aa_dropped))
+                }, AA_GONE_REPORT_MS)
             }
             return
         }
         LogBus.log("[AA] user exited Android Auto — stopping projection to the dash")
         watchdogHandler.post { fullTeardown() }
+    }
+
+    /** A drop is only worth a relaunch while this service still hosts a receiver for a live connect. */
+    private fun canRelaunchAa(): Boolean {
+        if (!isRunning || aaParked || receiver == null) return false
+        val p = ConnectionState.phase
+        return p != Phase.STOPPED && p != Phase.IDLE && p != Phase.WAITING_FOR_BIKE
     }
 
     /**
@@ -717,6 +737,8 @@ class AndroidAutoService : Service() {
         mediaButtons = null
         try { receiver?.stop() } catch (_: Exception) {}
         receiver = null
+        // The stop above can queue work (session-ended callbacks); nothing may outlive the service.
+        watchdogHandler.removeCallbacksAndMessages(null)
         AaVideoBridge.pipeline = null
         try { pipeline?.stop() } catch (_: Exception) {}
         pipeline = null
@@ -741,6 +763,7 @@ class AndroidAutoService : Service() {
         private const val ERROR_COOLDOWN_MS = 20_000L  // min gap between re-arm attempts after ERROR
         private const val GRACE_MS = 180_000L          // SoftAP blinks; 60s was parking mid-ride
         private const val RESUME_STEADY_TIMEOUT_MS = 12_000L // wait for AA video before falling back
+        private const val AA_GONE_REPORT_MS = 8_000L         // AA dropped, retries spent: then say so
 
         internal fun bikeTransportConnected(apConnected: Boolean, p2pConnected: Boolean, liveLink: Boolean = false): Boolean =
             apConnected || p2pConnected || liveLink

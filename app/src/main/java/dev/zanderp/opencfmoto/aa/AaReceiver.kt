@@ -150,6 +150,9 @@ class AaReceiver(
 
     fun stop() {
         running = false
+        // Pending self-mode escalations would poke Android Auto again after we are gone: it then
+        // sits on "Connecting to Android Auto…" against a closed port until it is force-stopped.
+        AaSelfMode.cancel()
         AaVideoBridge.aaSessionLive = false
         AaVideoBridge.aaDecoding = false
         AaVideoBridge.touchSink = null
@@ -157,7 +160,9 @@ class AaReceiver(
         AaVideoBridge.scrollSink = null
         AaVideoBridge.previewTouchSink = null
         AaVideoBridge.nightSink = null
-        try { transport?.quit() } catch (_: Exception) {}
+        // Say goodbye (ByeBye, USER_SELECTION) instead of just closing the socket: a head unit that
+        // vanishes without it looks like a dropped link, and Android Auto keeps trying to reconnect.
+        try { transport?.stop() } catch (_: Exception) {}
         transport = null
         try { connection?.disconnect() } catch (_: Exception) {}
         connection = null
@@ -212,7 +217,9 @@ class AaReceiver(
             connection = null
             // Server keeps listening — AA (or the user) can reconnect. On a genuine user Exit we
             // notify the owner so it can fully stop the bike link instead of leaving the dash frozen.
-            try { onSessionEnded?.invoke(userExit) } catch (_: Exception) {}
+            // Not when we are the ones stopping ([stop]): that is no drop, and reporting it as one
+            // made the owner re-launch Android Auto right after tearing the receiver down.
+            if (running) try { onSessionEnded?.invoke(userExit) } catch (_: Exception) {}
         }
         transport = t
         AaVideoBridge.aaSessionLive = true

@@ -104,6 +104,14 @@ object AaSelfMode {
         }
     }
 
+    /**
+     * Drop any escalation still queued by [trigger]. Called when the receiver stops, so no poke
+     * reaches Android Auto after there is nothing left for it to connect to.
+     */
+    fun cancel() {
+        triggerGeneration.incrementAndGet()
+    }
+
     private fun sessionLive(): Boolean =
         dev.zanderp.opencfmoto.AaVideoBridge.aaSessionLive ||
             dev.zanderp.opencfmoto.AaVideoBridge.aaDecoding
